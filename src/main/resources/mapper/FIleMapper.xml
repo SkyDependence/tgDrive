@@ -7,12 +7,4 @@
         SET download_url = #{prefix} || SUBSTR(download_url, INSTR(download_url, '//') + 2 + INSTR(SUBSTR(download_url, INSTR(download_url, '//') + 2), '/') - 1)
         WHERE download_url NOT LIKE #{prefix} || '%';
     </update>
-
-    <delete id="deleteFilesByIds">
-        DELETE FROM files
-        WHERE file_id IN
-        <foreach collection="fileIds" item="fileId" open="(" separator="," close=")">
-            #{fileId}
-        </foreach>
-    </delete>
 </mapper>

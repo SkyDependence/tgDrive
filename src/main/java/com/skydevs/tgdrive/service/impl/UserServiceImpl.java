@@ -7,16 +7,16 @@ import com.skydevs.tgdrive.exception.PasswordErrorException;
 import com.skydevs.tgdrive.exception.UserNotFoundException;
 import com.skydevs.tgdrive.mapper.UserMapper;
 import com.skydevs.tgdrive.service.UserService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    private final UserMapper userMapper;
+    @Autowired
+    private UserMapper userMapper;
 
     /**
      * 根据用户名返回用户
@@ -50,13 +50,12 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 修改密码
-     *
      * @param changePasswordRequest 新老密码
      */
     @Override
-    public void changePassword(ChangePasswordRequest changePasswordRequest) {
+    public void changePassword(long id, ChangePasswordRequest changePasswordRequest) {
         // 查找用户
-        User user = userMapper.getUserByUsername(changePasswordRequest.getUsername());
+        User user = userMapper.getUserById(id);
 
         if (user == null) {
             throw new UserNotFoundException();
@@ -70,6 +69,6 @@ public class UserServiceImpl implements UserService {
 
         // 更新密码
         String newPassword = DigestUtils.md5DigestAsHex(changePasswordRequest.getNewPassword().getBytes());
-        userMapper.updatePassword(user.getId(), newPassword);
+        userMapper.updatePassword(id, newPassword);
     }
 }

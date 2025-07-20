@@ -1,70 +1,102 @@
 package com.skydevs.tgdrive.service;
 
-import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.File;
+import com.skydevs.tgdrive.dto.UploadFile;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.InputStream;
 
 /**
  * 机器人服务类，用于初始化机器人和运行机器人相关服务
  */
 public interface BotService{
+
     /**
-     * Description:
      * 获取bot token
-     * @author SkyDev
-     * @date 2025-07-16 16:32:53
+     * @return
      */
     String getBotToken();
 
-    /**
-     * Description:
-     * 获得bot
-     * @author SkyDev
-     * @date 2025-07-17 11:46:58
-     */
-    TelegramBot getBot();
 
     /**
-     * Description:
-     * 获取chatID
-     * @author SkyDev
-     * @date 2025-07-17 11:49:29
-     */
-    String getChatId();
-
-    /**
-     * Description:
      * 根据文件名设置botToken
-     * @author SkyDev
-     * @param filename 配置文件名
-     * @date 2025-07-16 16:33:14
+     * @param filename
      */
     void setBotToken(String filename);
 
+
     /**
-     * Description:
      * 发送消息
-     * @author SkyDev
-     * @param message 要发送的消息
-     * @date 2025-07-16 16:33:26
+     * @param message
      */
     boolean sendMessage(String message);
 
+
     /**
-     * Description:
+     * 上传文件
+     * @param multipartFile
+     * @return
+     */
+    UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request);
+
+    /**
      * 获取完整下载路径
-     * @author SkyDev
-     * @param file 文件
-     * @date 2025-07-16 16:34:05
+     * @param file
+     * @return
      */
     String getFullDownloadPath(File file);
 
+    /**
+     * 获取自定义URL配置
+     * @return 自定义URL，如果没有配置则返回null
+     */
+    String getCustomUrl();
+
 
     /**
-     * Description:
      * 根据fileId获取文件
-     * @author SkyDev
-     * @param fileId 文件id
-     * @date 2025-07-16 16:34:27
+     * @param fileId
+     * @return
      */
     File getFile(String fileId);
+
+    /**
+     * 根据ID获取文件名
+     * @param fileID
+     * @return
+     */
+    String getFileNameByID(String fileID);
+
+    /**
+     * 上传文件到Telegram
+     * @param inputStream 文件输入流
+     * @param path 文件路径
+     * @return 文件ID
+     */
+    String uploadFile(InputStream inputStream, String path);
+
+    /**
+     * WebDAV上传
+     * @param inputStream
+     * @param path
+     * @param request WebDAV请求
+     * @return fileID
+     */
+    String uploadFile(InputStream inputStream, String path, HttpServletRequest request);
+
+    /**
+     * 从Telegram下载文件
+     * @param fileId 文件ID
+     * @return 文件输入流
+     */
+    InputStream downloadFile(String fileId);
+
+    /**
+     * 从Telegram删除文件
+     * @param fileId 文件ID
+     */
+    void deleteFile(String fileId);
+
+
 }

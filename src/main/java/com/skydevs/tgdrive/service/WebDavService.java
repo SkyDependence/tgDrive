@@ -7,9 +7,7 @@ import java.io.IOException;
 
 public interface WebDavService {
     /**
-     * Description:
      * 选择合适的方法
-     * @author SkyDev
      * @param request WebDAV请求
      * @param response WebDAV响应
      */

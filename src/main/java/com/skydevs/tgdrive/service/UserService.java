@@ -7,19 +7,15 @@ import com.skydevs.tgdrive.entity.User;
 public interface UserService {
 
     /**
-     * Description:
      * 用户登入
-     * @author SkyDev
      * @param authRequest 请求参数（用户名，密码）
      * @return User
      */
     User login(AuthRequest authRequest);
 
     /**
-     * Description:
      * 修改密码
-     * @author SkyDev
      * @param changePasswordRequest 新老密码
      */
-    void changePassword(ChangePasswordRequest changePasswordRequest);
+    void changePassword(long id, ChangePasswordRequest changePasswordRequest);
 }

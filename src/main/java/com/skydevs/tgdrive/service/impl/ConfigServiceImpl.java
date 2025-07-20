@@ -4,32 +4,23 @@ import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.NoConfigException;
 import com.skydevs.tgdrive.mapper.ConfigMapper;
 import com.skydevs.tgdrive.service.ConfigService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * Description:
- * 配置服务类
- * @author nanyang
- * @date 2025-07-11 16:27:17
- */
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class ConfigServiceImpl implements ConfigService {
 
-    private final ConfigMapper configMapper;
+    @Autowired
+    ConfigMapper configMapper;
 
     /**
-     * Description: 根据文件名查询配置
-     *
-     * @param filename 文件名
-     * @return ConfigForm
-     * @author nanyang
-     * @date 2025-07-11 16:21:26
+     * 根据文件名查询配置
+     * @param filename
+     * @return
      */
     @Override
     public ConfigForm get(String filename) {
@@ -37,11 +28,8 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     /**
-     * Description:
      * 插入配置
-     * @param configForm 配置表单
-     * @author nanyang
-     * @date 2025-07-11 16:27:56
+     * @param configForm
      */
     @Override
     public void save(ConfigForm configForm) {
@@ -55,11 +43,15 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     /**
-     * Description:
-     * 获取配置
-     * @author SkyDev
-     * @date 2025-07-11 16:37:36
+     * 获取所有配置文件
+     * @return
      */
+    @Override
+    public void delete(String name) {
+        configMapper.deleteByName(name);
+        log.info("配置删除成功: {}", name);
+    }
+
     @Override
     public List<ConfigForm> getForms() {
         List<ConfigForm> configForms =  configMapper.getAll();

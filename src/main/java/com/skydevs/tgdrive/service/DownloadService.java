@@ -5,10 +5,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 public interface DownloadService {
     /**
-     * Description:
      * 下载文件
-     * @author SkyDev
-     * @param fileID 文件id
+     * @param fileID
+     * @return
      */
     ResponseEntity<StreamingResponseBody> downloadFile(String fileID);
 }

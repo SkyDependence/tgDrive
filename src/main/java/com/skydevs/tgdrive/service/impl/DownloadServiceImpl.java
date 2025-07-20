@@ -8,7 +8,6 @@ import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.utils.OkHttpClientFactory;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -17,6 +16,7 @@ import okhttp3.ResponseBody;
 import org.apache.tika.Tika;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -35,11 +35,12 @@ import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class DownloadServiceImpl implements DownloadService {
 
-    private final BotService botService;
-    private final FileMapper fileMapper;
+    @Autowired
+    private BotService botService;
+    @Autowired
+    private FileMapper fileMapper;
 
     private final OkHttpClient okHttpClient = OkHttpClientFactory.createClient();
 

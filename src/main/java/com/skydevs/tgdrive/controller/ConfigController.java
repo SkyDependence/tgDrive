@@ -6,8 +6,8 @@ import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,12 +15,12 @@ import java.util.List;
 @RestController
 @Slf4j
 @RequestMapping("/api/config")
-@RequiredArgsConstructor
 public class ConfigController {
 
-    private final ConfigService configService;
-
-    private final BotService botService;
+    @Autowired
+    private ConfigService configService;
+    @Autowired
+    private BotService botService;
 
     /**
      * 获取配置文件信息
@@ -63,13 +63,19 @@ public class ConfigController {
         return Result.success("配置保存成功");
     }
 
+    @SaCheckLogin
+    @DeleteMapping("/{name}")
+    public Result<String> deleteConfig(@PathVariable("name") String name) {
+        configService.delete(name);
+        log.info("配置删除成功");
+        return Result.success("配置删除成功");
+    }
+
     /**
-     * Description:
      * 加载配置
+     *
      * @param filename 配置文件名
-     * @return String
-     * @author SkyDev
-     * @date 2025-07-11 17:00:25
+     * @return
      */
     @SaCheckLogin
     @GetMapping("/{filename}")

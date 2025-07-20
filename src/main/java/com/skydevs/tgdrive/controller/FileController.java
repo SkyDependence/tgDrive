@@ -1,44 +1,38 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.dto.UploadFile;
-import com.skydevs.tgdrive.entity.FileInfo;
+
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.FileService;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 
-/**
- * Description:
- * 文件管理
- * @author SkyDev
- * @date 2025-07-11 17:47:55
- */
 @RestController
 @Slf4j
 @RequestMapping("/api")
-@RequiredArgsConstructor
 public class FileController {
 
-    private final BotService botService;
-
-    private final FileService fileService;
+    @Autowired
+    private BotService botService;
+    @Autowired
+    private FileService fileService;
 
 
     /**
-     * Description:
      * 上传文件
-     * @author SkyDev
-     * @date 2025-07-11 17:48:15
+     *
+     * @param multipartFile
+     * @return
      */
     @PostMapping("/upload")
     public CompletableFuture<Result<UploadFile>> uploadFile(@RequestParam("file") MultipartFile multipartFile, HttpServletRequest request) {
@@ -46,56 +40,71 @@ public class FileController {
             if (multipartFile == null || multipartFile.isEmpty()) {
                 return Result.error("上传的文件为空");
             }
-            return Result.success(fileService.getUploadFile(multipartFile, request, botService.getChatId(), botService.getBot()));
+            return Result.success(botService.getUploadFile(multipartFile, request));
         });
     }
 
-    /**
-     * Description:
-     * 根据文件列表删除文件
-     * @param fileIds 需要删除的文件列表
-     * @author SkyDev
-     * @date 2025-07-18 15:57:06
-     */
-    @SaCheckLogin
-    @DeleteMapping("/files")
-    public Result<Void> deleteFile(@RequestBody List<String> fileIds) {
-        if (fileIds == null || fileIds.isEmpty()) {
-            return Result.error("文件列表不能为空");
-        }
-        fileService.deleteFiles(fileIds);
-        log.info("成功删除文件：{}", fileIds);
-        return Result.success();
-    }
+
+
+
 
     /**
-     * Description:
-     * 获取文件分页列表
-     * @param page 页数
-     * @param size 每页数量
-     * @author SkyDev
-     * @date 2025-07-11 17:48:41
+     * 发送消息
+     *
+     * @param message
+     * @return
+     */
+    @PostMapping("/send-message")
+    public Result<String> sendMessage(@RequestBody Message message) {
+        log.info("处理消息发送");
+        if (botService.sendMessage(message.getMessage())) {
+            return Result.success("消息发送成功: " + message);
+        } else {
+            return Result.error("消息发送失败");
+        }
+    }
+
+
+    /**
+     * 获取文件列表
+     * @param page
+     * @param size
+     * @return
      */
     @SaCheckLogin
     @GetMapping("/fileList")
-    public Result<PageResult<FileInfo>> getFileList(@RequestParam int page, @RequestParam int size) {
-        PageResult<FileInfo> pageResult = fileService.getFileList(page, size);
+    public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size) {
+        PageResult pageResult = fileService.getFileList(page, size);
         return Result.success(pageResult);
     }
 
     /**
-     * Description:
-     * 更新文件URL
-     * @param request 前端请求
-     * @return Result
-     * @author SkyDev
-     * @date 2025-07-11 17:50:08
+     * 更新文件url
+     * @return
      */
     @SaCheckLogin
     @PutMapping("/file-url")
-    public Result<Void> updateFileUrl(HttpServletRequest request) {
+    public Result updateFileUrl(HttpServletRequest request) {
         log.info("更新文件url");
         fileService.updateUrl(request);
         return Result.success();
+    }
+
+    /**
+     * 删除文件
+     * @param fileId 文件ID
+     * @return
+     */
+    @SaCheckLogin
+    @DeleteMapping("/file/{fileId}")
+    public Result deleteFile(@PathVariable String fileId) {
+        log.info("删除文件，fileId: {}", fileId);
+        try {
+            fileService.deleteFile(fileId);
+            return Result.success("文件删除成功");
+        } catch (Exception e) {
+            log.error("文件删除失败", e);
+            return Result.error("文件删除失败: " + e.getMessage());
+        }
     }
 }

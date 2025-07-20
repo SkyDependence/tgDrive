@@ -18,13 +18,6 @@ public class BackupServiceImpl implements BackupService {
     private static final String BACKEND_DB_PATH = "jdbc:sqlite:db/tgDrive.db"; // 后端数据库路径
     private static final String BACKUP_DB_PATH = "db/tgdrive_backup.db"; // 备份路径
 
-    /**
-     * Description:
-     * 加载数据库
-     * @param db 数据库文件
-     * @author SkyDev
-     * @date 2025-07-16 16:09:30
-     */
     @Override
     public void loadBackupDb(MultipartFile db) throws Exception {
         File tempFile = File.createTempFile("uploaded", ".db");
@@ -41,11 +34,11 @@ public class BackupServiceImpl implements BackupService {
 
             backendConn.setAutoCommit(false); // 开启事务
 
-            // 使用 Statement 执行 ATTACH DATABASE
+            // **使用 Statement 执行 ATTACH DATABASE**
             String attachSql = "ATTACH DATABASE '" + tempFile.getAbsolutePath() + "' AS tempDb;";
             stmt.execute(attachSql);
 
-            // 合并 files 表数据
+            // **合并 files 表数据**
             String mergeSql = """
                 INSERT INTO files (file_name, download_url, upload_time, size, full_size, file_id, webdav_path, dir)
                 SELECT file_name, download_url, upload_time, size, full_size, file_id, webdav_path, dir

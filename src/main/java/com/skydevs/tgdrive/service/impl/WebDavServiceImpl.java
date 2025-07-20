@@ -7,8 +7,8 @@ import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,16 +20,17 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import static org.apache.catalina.manager.JspHelper.escapeXml;
+import org.springframework.util.StringUtils;
 
 @Service
 @Slf4j
 @Transactional
-@RequiredArgsConstructor
 public class WebDavServiceImpl implements WebDavService {
 
-    private final FileService fileService;
-    private final FileMapper fileMapper;
+    @Autowired
+    private FileService fileService;
+    @Autowired
+    private FileMapper fileMapper;
 
     @Override
     public void switchMethod(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -230,16 +231,16 @@ public class WebDavServiceImpl implements WebDavService {
             DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
 
     private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
-        response.setStatus(207); // 207 Multi-Status
-        response.setContentType("application/xml;charset=UTF-8");
+        try {
+            response.setStatus(207); // 207 Multi-Status
+            response.setContentType("application/xml;charset=UTF-8");
 
-        String path = request.getRequestURI().substring("/webdav/dispatch".length());
-        if (path.isEmpty()) {
-            path = "/";
-        }
+            String path = realURI;
+            if (!StringUtils.hasText(path) || path.equals("/")) {
+                path = "/";
+            }
 
-        // 假设 fileService.listFiles(path) 返回一个 Map，其中 "files" 是 List<Map<String,Object>>
-        List<FileInfo> files = fileService.listFiles(path);
+            List<FileInfo> files = fileService.listFiles(path);
 
         StringBuilder xmlBuilder = new StringBuilder();
         xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -252,7 +253,7 @@ public class WebDavServiceImpl implements WebDavService {
                 .append("<D:prop>\n")
                 .append("<D:displayname>").append(escapeXml(getDisplayName(path))).append("</D:displayname>\n")
                 .append("<D:getlastmodified>").append(RFC1123_FORMATTER.format(Instant.now())).append("</D:getlastmodified>\n")
-                .append("<D:resourcetype><D:collection/></D:resourcetype>\n")  // 这里表示本节点是目录
+                .append("<D:resourcetype><D:collection/></D:resourcetype>\n")
                 .append("</D:prop>\n")
                 .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
                 .append("</D:propstat>\n")
@@ -293,8 +294,26 @@ public class WebDavServiceImpl implements WebDavService {
                     .append("</D:response>\n");
         }
 
-        xmlBuilder.append("</D:multistatus>");
-        response.getWriter().write(xmlBuilder.toString());
+            xmlBuilder.append("</D:multistatus>");
+            response.getWriter().write(xmlBuilder.toString());
+        } catch (Exception e) {
+            log.error("PROPFIND请求处理失败: {}", e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * XML转义方法
+     */
+    private String escapeXml(String input) {
+        if (input == null) {
+            return "";
+        }
+        return input.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 
     private String getDisplayName(String path) {

@@ -7,32 +7,24 @@ import com.skydevs.tgdrive.dto.UserLogin;
 import com.skydevs.tgdrive.entity.User;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.UserService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Description:
- * 用户控制类
- * @author SkyDev
- * @date 2025-07-11 17:52:21
- */
 @RestController
 @Slf4j
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class UserController {
-    private final UserService userService;
+    @Autowired
+    private UserService userService;
 
     /**
-     * Description:
-     * 登入
+     * 用户登入
      * @param authRequest 用户名、密码
-     * @author SkyDev
-     * @date 2025-07-11 17:52:44
+     * @return 登入状态
      */
     @PostMapping("/login")
     public Result<UserLogin> login(@RequestBody AuthRequest authRequest) {
@@ -51,19 +43,17 @@ public class UserController {
     }
 
     /**
-     * Description:
      * 修改密码
      * @param changePasswordRequest 修改密码请求
-     * @author SkyDev
-     * @date 2025-07-11 17:53:25
+     * @return
      */
     @PostMapping("change-password")
     public Result<String> changePassword(@RequestBody ChangePasswordRequest changePasswordRequest) {
         long userId = StpUtil.getLoginIdAsLong();
 
-        userService.changePassword(changePasswordRequest);
+        userService.changePassword(userId, changePasswordRequest);
 
-        log.info(userId + "密码修改" + changePasswordRequest.getUsername() + "成功");
+        log.info(userId + "密码修改成功");
         return Result.success("密码修改成功");
     }
 }
