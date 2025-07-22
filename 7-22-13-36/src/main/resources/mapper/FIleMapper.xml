@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.skydevs.tgdrive.mapper.FileMapper">
+
+    <update id="updateUrl" parameterType="string">
+        UPDATE files
+        SET download_url = #{prefix} || SUBSTR(download_url, INSTR(download_url, '//') + 2 + INSTR(SUBSTR(download_url, INSTR(download_url, '//') + 2), '/') - 1)
+        WHERE download_url NOT LIKE #{prefix} || '%';
+    </update>
+</mapper>

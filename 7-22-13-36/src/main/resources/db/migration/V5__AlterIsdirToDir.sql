@@ -1,0 +1,1 @@
+ALTER TABLE files RENAME is_dir to dir

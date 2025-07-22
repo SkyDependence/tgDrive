@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 指定日志文件存放路径和文件名 -->
+    <property name="LOG_PATH" value="./logs"/>
+    <property name="LOG_FILE_NAME" value="application.log"/>
+
+    <!-- 控制台输出 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 滚动日志文件（按大小分割） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 设置日志文件路径 -->
+        <file>${LOG_PATH}/${LOG_FILE_NAME}</file>
+
+        <!-- 触发滚动的策略：文件大小达到 10MB 则创建新文件 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 日志文件命名规则 (如: application.2025-02-28.1.log) -->
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+
+            <!-- 单个日志文件的最大大小 -->
+            <maxFileSize>10MB</maxFileSize>
+
+            <!-- 保留的日志文件最大数量 (防止日志占用过多磁盘空间) -->
+            <maxHistory>7</maxHistory>
+
+            <!-- 最大总大小（超过则删除旧日志） -->
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 设置日志级别，控制哪些日志会被记录 -->
+    <logger name="com.example" level="info"/>
+
+    <!-- 全局日志级别 -->
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
