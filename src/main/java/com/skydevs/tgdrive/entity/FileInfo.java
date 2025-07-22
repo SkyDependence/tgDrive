@@ -20,5 +20,9 @@ public class FileInfo {
     private String webdavPath;
 
     private boolean dir;
+
+    private Long userId;
+
+    private boolean isPublic = false;
 }
 

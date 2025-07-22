@@ -18,4 +18,11 @@ public interface UserService {
      * @param changePasswordRequest 新老密码
      */
     void changePassword(long id, ChangePasswordRequest changePasswordRequest);
+
+    /**
+     * 根据用户名获取用户
+     * @param username 用户名
+     * @return User
+     */
+    User getUserByUsername(String username);
 }

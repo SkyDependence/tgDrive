@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.skydevs</groupId>
-    <artifactId>tgDrive</artifactId>
-    <version>0.0.9</version>
-    <name>tgDrive</name>
-    <description>tgDrive</description>
+    <artifactId>STdrive</artifactId>
+    <version>0.1</version>
+    <name>STdrive</name>
+    <description>STdrive</description>
     <url/>
     <licenses>
         <license/>
@@ -34,6 +34,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
         <dependency>
             <groupId>com.github.pengrad</groupId>

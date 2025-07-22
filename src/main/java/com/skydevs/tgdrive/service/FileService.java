@@ -16,7 +16,7 @@ public interface FileService {
      * @param size
      * @return
      */
-    PageResult getFileList(int page, int size);
+    PageResult getFileList(int page, int size, String keyword, Long userId, String role);
 
     /**
      * 更新文件url
@@ -58,5 +58,6 @@ public interface FileService {
      * 根据文件ID删除文件
      * @param fileId 文件ID
      */
-    void deleteFile(String fileId);
+    void deleteFile(String fileId, Long userId, String role);
+    void updateIsPublic(String fileId, boolean isPublic, Long userId, String role);
 }

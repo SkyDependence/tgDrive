@@ -1,0 +1,1 @@
+import{a as e}from"./vendor-BoV0XpOF.js";const r=e.create({baseURL:"/api",timeout:216e5});r.interceptors.request.use(e=>{const r=localStorage.getItem("token");return r&&(e.headers.Authorization=`Bearer ${r}`),e},e=>Promise.reject(e)),r.interceptors.response.use(e=>e,e=>(e.response&&401===e.response.status&&(window.location.href="/login"),Promise.reject(e)));export{r as s};

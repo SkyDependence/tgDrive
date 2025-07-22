@@ -9,11 +9,10 @@
 ![GitHub forks](https://img.shields.io/github/forks/SkyDependence/tgDrive)
 ![GitHub issues](https://img.shields.io/github/issues/SkyDependence/tgDrive)
 ![GitHub license](https://img.shields.io/github/license/SkyDependence/tgDrive)
-[![tg-group](https://img.shields.io/static/v1?label=TG%20Group&amp;message=TgDrive&amp;color=blue)](https://t.me/+nhHtap9IYbVhOTM1)
 
 </div>
 
-**tgDrive** is a cloud storage application based on Telegram Bot, developed using Java, supporting unlimited capacity and speed for file storage. Utilizing multi-threading technology and optimized transfer strategies, it provides users with an efficient and reliable cloud storage solution.
+**tgDrive** is a cloud storage application developed in Java based on Telegram Bot, supporting unlimited capacity and speed for file storage. Through multi-threading technology and optimized transfer strategies, it provides users with an efficient and reliable cloud storage solution.
 
 ## Table of Contents
 
@@ -22,11 +21,10 @@
 - [Deployment Methods](#deployment-methods)
   - [Docker Compose Deployment](#docker-compose-deployment)
   - [Docker Deployment](#docker-deployment)
-  - [Self-Hosting](#self-hosting)
+  - [Self-Deployment](#self-deployment)
   - [Render Deployment](#render-deployment)
-- [Usage Instructions](#usage-instructions)
+- [Usage Guide](#usage-guide)
 - [Advanced Configuration](#advanced-configuration)
-  - [WebDAV Configuration](#webdav-configuration)
   - [PicGo Configuration](#picgo-configuration)
   - [Reverse Proxy](#reverse-proxy)
 - [Support and Feedback](#support-and-feedback)
@@ -35,26 +33,24 @@
 
 ### Core Advantages
 
-- 🚀 **Break Limits**: Completely bypasses the 20MB file size limit of the Telegram Bot API.
-- 📈 **Multi-threaded Transfer**: Uses multi-threading for uploads and downloads to maximize bandwidth utilization.
-- 🔗 **External Link Support**: Supports external links for images, allowing direct access and preview in the browser.
-- 🖼️ **Image Hosting Integration**: Perfectly supports the PicGo image uploader tool, providing convenient image hosting services.
-- 🎯 **GIF Optimization**: Addresses the issue of Telegram automatically converting GIFs to MP4s.
-- 🌐 **WebDAV Support**: Provides a WebDAV interface, allowing third-party applications to manage and operate files, enhancing file interaction flexibility.
+- 🚀 **Breaking Limits**: Completely breaks through the 20MB file size limit of Telegram Bot API
+- 📈 **Multi-threaded Transfer**: Uses multi-threaded upload and download technology to maximize bandwidth utilization
+- 🔗 **External Links**: Supports image external linking, allowing direct browser access and preview
+- 🖼️ **Image Hosting Integration**: Perfect support for PicGo image hosting tool, providing convenient image hosting services
+- 🎯 **GIF Optimization**: Solves the issue of Telegram automatically converting GIFs to MP4
 
 ### Technical Features
 
-- ⚡ **High Performance**: Developed based on Java 17+, ensuring stability and performance.
-- 🐳 **Containerization**: Offers Docker support, simplifying deployment and maintenance processes.
-- 💾 **Data Persistence**: Supports persistent data storage to ensure data safety.
-- 🔄 **API Support**: Provides a complete RESTful API interface.
-- 🌐 **WebDAV Support**: Provides a basic WebDAV interface.
+- ⚡ **High Performance**: Developed with Java 17+, ensuring stability and performance
+- 🐳 **Containerization**: Provides Docker support, simplifying deployment and maintenance
+- 💾 **Data Persistence**: Supports data persistence storage, ensuring data security
+- 🔄 **API Support**: Provides complete RESTful API interfaces
 
 ## Quick Start
 
-### Online Demo
+### Online Experience
 
-- [Render Deployed Site (Recommended)](https://render.skydevs.link)
+- [Render Deployment Site (Recommended)](https://render.skydevs.link)
 - [Demo Site](https://server.skydevs.link)
 
 ### Related Resources
@@ -67,9 +63,9 @@
 ### Docker Compose Deployment
 
 >[!TIP]
->📌 **Note**: If the server has limited memory (RAM ≤ 512MB), it is recommended to use the `nanyangzesi/tgdrive:server-latest` image.
+>📌 **Note**: If your server has limited memory (RAM ≤ 512MB), it's recommended to use the `nanyangzesi/tgdrive:server-latest` image
 
-1. Create a `docker-compose.yml` file:
+1. Create `docker-compose.yml` file:
 
    ```yaml
    services:
@@ -89,9 +85,9 @@
 docker-compose up -d
 ```
 
-#### Update Image
+#### Updating the Image
 
-After mounting the data volume, you only need to pull the latest image and restart the container to update. Database data will not be lost:
+When using volume mounting, after each image update, you only need to pull the image and restart the container. The database data will not be lost:
 
 ```bash
 docker compose pull
@@ -107,11 +103,9 @@ docker pull nanyangzesi/tgdrive:latest
 docker run -d -p 8085:8085 --name tgdrive --restart always nanyangzesi/tgdrive:latest
 ```
 
-#### Migrate Previous Data
-> [!TIP]
-> Starting from v0.0.9, you can directly download the database and restore file data from the database in the admin interface.
+#### Migrating Previous Data
 
-If you have already run the project and generated database files inside the container, you can manually migrate this data to a persistent directory on the host:
+If you've run the project before and generated database files in the container, you can manually migrate this data to a persistent directory on the host:
 
 1. Find the old container's ID or name:
 
@@ -122,38 +116,38 @@ If you have already run the project and generated database files inside the cont
 2. Copy the database files from the container to the host:
 
    ```bash
-   docker cp <container_name_or_id>:/app/db ./db
+   docker cp <container-name-or-ID>:/app/db ./db
    ```
 
-   - Replace `<container_name_or_id>` with the actual container identifier.
-   - This copies the contents of the `/app/db` folder inside the container to the `db` folder in the current directory on the host.
+   - Replace `<container-name-or-ID>` with the actual container identifier.
+   - Copy the contents of the `/app/db` folder in the container to the `db` folder in the current directory on the host.
 
 3. Restart the project:
 
-   Using the updated `docker-compose.yml`, restart the project:
+   Use the updated `docker-compose.yml` and restart the project:
 
    ```bash
    docker compose up -d
    ```
 
-4. Verify data:
+4. Verify the data:
 
-   After starting, the project should be able to read the data from the host's `./db` folder.
+   After startup, the project should be able to read the data from the `./db` folder on the host.
 
-### Self-Hosting
+### Self-Deployment
 
 Prerequisites:
 
-- Java 17 or higher
+- Java 17 or higher version
 
-Deployment Steps:
+Deployment steps:
 
 1. Go to the [release page](https://github.com/SkyDependence/tgDrive/releases) to download the latest binary package.
-2. Navigate to the directory where the downloaded binary package is located.
+2. Navigate to the directory containing the downloaded binary package.
 3. Run the following command:
 
    ```bash
-   java -jar [latest_binary_package_name.jar]
+   java -jar [latest-binary-package-name]
    ```
 
    For example:
@@ -162,12 +156,12 @@ Deployment Steps:
    java -jar tgDrive-0.0.2-SNAPSHOT.jar
    ```
 
-4. After successful execution, access `localhost:8085` in your browser to start using it.
+4. After successful execution, visit `localhost:8085` in your browser to start using.
 
 ### Render Deployment
 
 > [!TIP]
-> Render free tier deployment requires bank card verification.
+> Render free deployment requires bank card verification.
 
 ### Steps
 
@@ -175,76 +169,42 @@ Deployment Steps:
 
    ![Create Web Service](https://github.com/user-attachments/assets/543abbd1-0b2e-4892-8e46-265539159831)
 
-2. Choose Docker image and enter `nanyangzesi/tgdrive:latest`.
+2. Select Docker image and enter `nanyangzesi/tgdrive:latest`.
 
    ![Enter Image](https://github.com/user-attachments/assets/09f212c1-886b-424e-8015-a8f96f7e48ee)
 
-3. Select the free instance type.
+3. Choose the free instance.
 
-   ![Select Free Instance](https://github.com/user-attachments/assets/18506bfa-9dda-4c41-a1eb-6cd7206c6f4b)
+   ![Choose Free Instance](https://github.com/user-attachments/assets/18506bfa-9dda-4c41-a1eb-6cd7206c6f4b)
 
-4. Scroll to the bottom of the page and click **Deploy Web Service** to complete the deployment.
+4. Scroll to the bottom of the page and click **Deploy Web Service** to complete deployment.
 
-## Usage Instructions
+## Usage Guide
 
-After accessing the URL where you deployed the project, you will see the following page:
-> [!TIP]
-> Starting from v0.0.9, all pages require login. There are two types of accounts: admin and visitor. Visitors can only access the upload page. The visitor account is `visitor` with the password `111111`.
+After accessing your deployed project URL, you'll see the following page:
 
-![Home Page](https://github.com/user-attachments/assets/ede633bb-053a-49e4-ab2b-faff3c688c77)
+![Homepage](https://github.com/user-attachments/assets/ede633bb-053a-49e4-ab2b-faff3c688c77)
 
-Click on the Admin Interface and fill in the bot token:
+Click on the management interface and fill in the bot token:
 
 ![image](https://github.com/user-attachments/assets/83d05394-caf1-46ce-acdf-9b9c5611294e)
 
-Don't know how to get the bot token and chatID? See [this article](https://skydevs.link/posts/tech/telegram_bot)
+Don't know how to get the bot token and chatID? Check out [this article](https://skydevs.link/posts/tech/telegram_bot)
 
-After filling it in, click Submit Configuration. Then, scroll down, select the configuration file you just added to load it, and you can start uploading:
+After filling in, click submit configuration, scroll down, select the configuration file you just filled in to load, and you can start uploading:
 
 ![image](https://github.com/user-attachments/assets/25d1fd3d-d390-4674-9d77-d0d9bc1153fa)
 
 ## Advanced Configuration
 
-### WebDAV Configuration
-
-> [!TIP]
-> WebDAV support started from v0.0.8.
-
-#### Using [AList](https://alist.nn.ci) as an example
-
-1. Click on Admin on the homepage:
-
-![07d536381c29ac316f077743eab9c6ff](https://github.com/user-attachments/assets/eecd80be-3ec7-4916-ae73-779aaf09fc58)
-
-2. Storage, Add:
-
-![309722142e517cb0398d2c7a44976317](https://github.com/user-attachments/assets/7834972b-be4c-4307-9baa-8647216c6a42)
-
-3. Select WebDAV as the driver:
-
-![a94e203172604e571bd069f27fa15b9b](https://github.com/user-attachments/assets/419e7f96-e310-4edf-8698-c079dbb4215b)
-
-4. Fill in the configuration:
-
-![e7d28472622282b771914ecb5094386c](https://github.com/user-attachments/assets/fe6efd87-a584-46da-949c-ea8d6dfd1afb)
-
-Address: `https://your.server.com/webdav`
-
-> [!TIP]
-> If both tgDrive and AList are running in local Docker containers, use the address `http://host.docker.internal:8085/webdav/`
-
-Username and Password: These are the tgDrive admin username and password, default is `admin` `123456`. You can (and should) change the password in the tgDrive admin interface (Recommended).
-
-After filling in, click Add. Go back to the homepage, enter the mount path you just configured, and start using it!
-
 ### PicGo Configuration
 
 > [!TIP]
-> PicGo support started from v0.0.4.
+> Supported from v0.0.4+ onwards.
 
-This project supports quick image uploads using [PicGo](https://github.com/Molunerfinn/PicGo).
+This project supports quick image uploads in combination with [PicGo](https://github.com/Molunerfinn/PicGo).
 
-#### Prerequisites
+#### Preparation
 
 Ensure the PicGo plugin `web-uploader` is installed.
 
@@ -252,9 +212,9 @@ Ensure the PicGo plugin `web-uploader` is installed.
 
 #### Parameter Description
 
-- **API Address**: Default for local is `http://localhost:8085/api/upload`. If deployed on a server, change to `http://<server_address>:8085/api/upload`.
-- **POST Parameter Name**: Defaults to `file`.
-- **JSON Path**: Defaults to `data.downloadLink`.
+- **API Address**: Local default is `http://localhost:8085/api/upload`. For server deployment, modify to `http://<server-address>:8085/api/upload`.
+- **POST Parameter Name**: Default is `file`.
+- **JSON Path**: Default is `data.downloadLink`.
 
 ![PicGo Configuration Example](https://github.com/user-attachments/assets/dffeeb23-8f63-4bdb-a676-0bd693a2bede)
 
@@ -264,17 +224,15 @@ Ensure the PicGo plugin `web-uploader` is installed.
 
 ```caddyfile
 example.com {
-    # Enable HTTPS (Caddy automatically obtains and manages SSL certificates)
-    reverse_proxy / http://localhost:8085 {
-        # Set proxy headers
-        header_up Host {host}                     # Preserve the original Host header from the client
-        header_up X-Real-IP {remote}              # Client's real IP
-        header_up X-Forwarded-For {remote}        # X-Forwarded-For header, identifying the client IP
-        header_up X-Forwarded-Proto {scheme}      # Client's protocol (http or https)
-        header_up X-Forwarded-Port {port}         # Client's port number
+    reverse_proxy /api* localhost:8080 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Port {server_port}
     }
 }
 ```
+
+- `{scheme}`: Filled based on the actual request protocol (HTTP or HTTPS).
+- `{server_port}`: Automatically obtains the port the client connects to (e.g., 443).
 
 #### NGINX Configuration
 
@@ -282,8 +240,6 @@ example.com {
 server {
     listen 443 ssl;
     server_name example.com;
-    # ssl_certificate /path/to/your/fullchain.pem; # Add your SSL cert path
-    # ssl_certificate_key /path/to/your/privkey.pem; # Add your SSL key path
 
     location / {
         proxy_pass http://localhost:8085;
@@ -291,18 +247,16 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Port $server_port;
-        client_max_body_size 100M ; # Can be set to the maximum size of the files you need to upload
     }
 }
 ```
 
 ## Support and Feedback
 
-If you find this project helpful, feel free to:
+If you find this project helpful, you're welcome to:
 
 - ⭐ Star the project
 - 🔄 Share it with more friends
-- 🐛 Submit an Issue or Pull Request
+- 🐛 Submit Issues or Pull Requests
 
-Your support is the driving force behind the project's continued development!
+Your support is the driving force behind the project's continuous development!

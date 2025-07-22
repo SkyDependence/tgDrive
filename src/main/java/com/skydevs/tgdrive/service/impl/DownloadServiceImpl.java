@@ -5,15 +5,18 @@ import com.pengrad.telegrambot.model.File;
 import com.skydevs.tgdrive.entity.BigFileInfo;
 import com.skydevs.tgdrive.exception.BotNotSetException;
 import com.skydevs.tgdrive.mapper.FileMapper;
-import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.DownloadService;
+import com.skydevs.tgdrive.service.FileStorageService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import com.skydevs.tgdrive.utils.OkHttpClientFactory;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.apache.tika.Tika;
+import java.util.concurrent.TimeUnit;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,11 +41,23 @@ import java.util.concurrent.Executors;
 public class DownloadServiceImpl implements DownloadService {
 
     @Autowired
-    private BotService botService;
+    private FileStorageService fileStorageService;
+    @Autowired
+    private TelegramBotService telegramBotService;
     @Autowired
     private FileMapper fileMapper;
 
-    private final OkHttpClient okHttpClient = OkHttpClientFactory.createClient();
+    // 优化的HTTP客户端配置
+    private final OkHttpClient okHttpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            // 配置连接池：最大空闲连接数5，连接保持时间5分钟
+            .connectionPool(new ConnectionPool(5, 5, TimeUnit.MINUTES))
+            // 启用连接复用
+            .retryOnConnectionFailure(true)
+            // 最大请求数限制
+            .build();
 
     /**
      * 下载文件
@@ -86,7 +101,7 @@ public class DownloadServiceImpl implements DownloadService {
     private ResponseEntity<StreamingResponseBody> handleRegularFile(String fileID, InputStream inputStream, byte[] chunkData) {
         log.info("文件不是记录文件，直接下载文件...");
 
-        File file = botService.getFile(fileID);
+        File file = telegramBotService.getFile(fileID);
         String filename = resolveFilename(fileID, file.filePath());
         if (filename.lastIndexOf('.') == -1) {
             Tika tika = new Tika();
@@ -288,8 +303,8 @@ public class DownloadServiceImpl implements DownloadService {
      * @throws IOException
      */
     private InputStream downloadFileInputStream(String fileID) throws IOException {
-        File file = botService.getFile(fileID);
-        String fileUrl = botService.getFullDownloadPath(file);
+        File file = telegramBotService.getFile(fileID);
+        String fileUrl = telegramBotService.getFullFilePath(file);
 
         Request request = new Request.Builder()
                 .url(fileUrl)
@@ -351,8 +366,8 @@ public class DownloadServiceImpl implements DownloadService {
      * @throws IOException
      */
     private ResponseBody downloadFileByte(String partFileId) throws IOException {
-        File partFile = botService.getFile(partFileId);
-        String partFileUrl = botService.getFullDownloadPath(partFile);
+        File partFile = telegramBotService.getFile(partFileId);
+        String partFileUrl = telegramBotService.getFullFilePath(partFile);
         Request partRequest = new Request.Builder()
                 .url(partFileUrl)
                 .get()

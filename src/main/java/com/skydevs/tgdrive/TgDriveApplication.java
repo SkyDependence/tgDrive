@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.skydevs.tgdrive", "com.stanley"})
 @EnableAsync
 @EnableScheduling
 @Transactional

@@ -6,9 +6,10 @@ import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.exception.FailedToGetSizeException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.result.PageResult;
-import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.service.FileService;
+import com.skydevs.tgdrive.service.FileStorageService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +32,9 @@ public class FileServiceImpl implements FileService {
     @Autowired
     private FileMapper fileMapper;
     @Autowired
-    private BotService botService;
+    private FileStorageService fileStorageService;
+    @Autowired
+    private TelegramBotService telegramBotService;
     @Autowired
     private DownloadService downloadService;
 
@@ -42,10 +45,9 @@ public class FileServiceImpl implements FileService {
      * @return
      */
     @Override
-    public PageResult getFileList(int page, int size) {
-        // 设置分页
+    public PageResult getFileList(int page, int size, String keyword, Long userId, String role) {
         PageHelper.startPage(page, size);
-        Page<FileInfo> pageInfo = fileMapper.getAllFiles();
+        Page<FileInfo> pageInfo = fileMapper.getFilteredFiles(keyword, userId, role);
         List<FileInfo> fileInfos = new ArrayList<>();
         for (FileInfo fileInfo : pageInfo) {
             FileInfo fileInfo1 = new FileInfo();
@@ -76,7 +78,8 @@ public class FileServiceImpl implements FileService {
                 log.error("无法获取文件大小");
                 throw new FailedToGetSizeException();
             }
-            String fileId = botService.uploadFile(inputStream, path, request);
+            String fileName = path.substring(path.lastIndexOf('/') + 1);
+            String fileId = fileStorageService.uploadFile(inputStream, fileName, size);
             List<FileInfo> fileInfos = fileMapper.getFilesByPathPrefix(path);
             for (FileInfo fileInfo : fileInfos) {
                 fileMapper.deleteFile(fileInfo.getFileId());
@@ -101,10 +104,8 @@ public class FileServiceImpl implements FileService {
                 log.info("新增文件夹路径{}", dirPath);
             }
 
-            // 从路径中提取文件名
-            String fileName = path.substring(path.lastIndexOf('/') + 1);
             // 优先使用自定义URL，如果没有配置则使用请求中的URL
-            String customUrl = botService.getCustomUrl();
+            String customUrl = telegramBotService.getCustomUrl();
             String prefix = (customUrl != null && !customUrl.trim().isEmpty()) ? customUrl.trim() : StringUtil.getPrefix(request);
             FileInfo fileInfo = FileInfo.builder()
                     .fileId(fileId)
@@ -186,13 +187,34 @@ public class FileServiceImpl implements FileService {
      * @param fileId 文件ID
      */
     @Override
-    public void deleteFile(String fileId) {
-        try {
-            fileMapper.deleteFile(fileId);
-            log.info("文件删除成功，fileId: {}", fileId);
-        } catch (Exception e) {
-            log.error("文件删除失败，fileId: {}", fileId, e);
-            throw new RuntimeException("文件删除失败", e);
+    public void deleteFile(String fileId, Long userId, String role) {
+        FileInfo file = fileMapper.getFileByFileId(fileId);
+        if (file == null) {
+            throw new RuntimeException("文件不存在");
+        }
+        if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
+            try {
+                fileMapper.deleteFile(fileId);
+                log.info("文件删除成功，fileId: {}", fileId);
+            } catch (Exception e) {
+                log.error("文件删除失败，fileId: {}", fileId, e);
+                throw new RuntimeException("文件删除失败", e);
+            }
+        } else {
+            throw new RuntimeException("无权限删除此文件");
+        }
+    }
+
+    @Override
+    public void updateIsPublic(String fileId, boolean isPublic, Long userId, String role) {
+        FileInfo file = fileMapper.getFileByFileId(fileId);
+        if (file == null) {
+            throw new RuntimeException("文件不存在");
+        }
+        if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
+            fileMapper.updateIsPublic(fileId, isPublic);
+        } else {
+            throw new RuntimeException("无权限更新此文件");
         }
     }
 }

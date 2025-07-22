@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface UserMapper {
+
+
     /**
      * 根据用户名查找用户
      * @param username 用户名

@@ -26,12 +26,17 @@ public class UserController {
      * @param authRequest 用户名、密码
      * @return 登入状态
      */
+
+
     @PostMapping("/login")
     public Result<UserLogin> login(@RequestBody AuthRequest authRequest) {
         // 验证用户名和密码
         User user = userService.login(authRequest);
 
         StpUtil.login(user.getId());
+        // 将用户角色存储到 session 中
+        StpUtil.getSession().set("role", user.getRole());
+        
         UserLogin userLogin = UserLogin.builder()
                 .UserId(user.getId())
                 .token(StpUtil.getTokenValue())

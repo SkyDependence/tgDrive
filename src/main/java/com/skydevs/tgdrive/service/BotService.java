@@ -38,7 +38,7 @@ public interface BotService{
      * @param multipartFile
      * @return
      */
-    UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request);
+    UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId);
 
     /**
      * 获取完整下载路径

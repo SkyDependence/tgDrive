@@ -1,6 +1,7 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.dto.UploadFile;
 
@@ -8,12 +9,14 @@ import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.FileService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -26,6 +29,8 @@ public class FileController {
     private BotService botService;
     @Autowired
     private FileService fileService;
+    @Autowired
+    private TelegramBotService telegramBotService;
 
 
     /**
@@ -34,35 +39,24 @@ public class FileController {
      * @param multipartFile
      * @return
      */
+    @SaCheckLogin
     @PostMapping("/upload")
     public CompletableFuture<Result<UploadFile>> uploadFile(@RequestParam("file") MultipartFile multipartFile, HttpServletRequest request) {
+        // 在主线程中获取用户信息，避免异步线程中无法获取 session
+        if (multipartFile == null || multipartFile.isEmpty()) {
+            return CompletableFuture.completedFuture(Result.error("上传的文件为空"));
+        }
+        
+        final long userId = StpUtil.getLoginIdAsLong();
+        
         return CompletableFuture.supplyAsync(() -> {
-            if (multipartFile == null || multipartFile.isEmpty()) {
-                return Result.error("上传的文件为空");
-            }
-            return Result.success(botService.getUploadFile(multipartFile, request));
+            return Result.success(botService.getUploadFile(multipartFile, request, userId));
         });
     }
 
 
 
 
-
-    /**
-     * 发送消息
-     *
-     * @param message
-     * @return
-     */
-    @PostMapping("/send-message")
-    public Result<String> sendMessage(@RequestBody Message message) {
-        log.info("处理消息发送");
-        if (botService.sendMessage(message.getMessage())) {
-            return Result.success("消息发送成功: " + message);
-        } else {
-            return Result.error("消息发送失败");
-        }
-    }
 
 
     /**
@@ -71,10 +65,15 @@ public class FileController {
      * @param size
      * @return
      */
-    @SaCheckLogin
     @GetMapping("/fileList")
-    public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size) {
-        PageResult pageResult = fileService.getFileList(page, size);
+    public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String keyword) {
+        Long userId = null;
+        String role = "visitor";
+        if (StpUtil.isLogin()) {
+            userId = StpUtil.getLoginIdAsLong();
+            role = StpUtil.getSession().getString("role");
+        }
+        PageResult pageResult = fileService.getFileList(page, size, keyword, userId, role);
         return Result.success(pageResult);
     }
 
@@ -96,11 +95,22 @@ public class FileController {
      * @return
      */
     @SaCheckLogin
+    @PutMapping("/file/{fileId}/public")
+    public Result updateFilePublic(@PathVariable String fileId, @RequestBody Map<String, Boolean> body) {
+        boolean isPublic = body.get("isPublic");
+        long userId = StpUtil.getLoginIdAsLong();
+        String role = StpUtil.getSession().getString("role");
+        fileService.updateIsPublic(fileId, isPublic, userId, role);
+        return Result.success("更新成功");
+    }
+    @SaCheckLogin
     @DeleteMapping("/file/{fileId}")
     public Result deleteFile(@PathVariable String fileId) {
         log.info("删除文件，fileId: {}", fileId);
         try {
-            fileService.deleteFile(fileId);
+            long userId = StpUtil.getLoginIdAsLong();
+            String role = StpUtil.getSession().getString("role");
+            fileService.deleteFile(fileId, userId, role);
             return Result.success("文件删除成功");
         } catch (Exception e) {
             log.error("文件删除失败", e);

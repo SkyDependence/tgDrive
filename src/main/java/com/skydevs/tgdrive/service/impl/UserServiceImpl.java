@@ -18,12 +18,15 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+
+
     /**
      * 根据用户名返回用户
      * @param username 用户名
      * @return User
      */
-    private User getUserByUsername(String username) {
+    @Override
+    public User getUserByUsername(String username) {
         return userMapper.getUserByUsername(username);
     }
 
