@@ -5,14 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Data
 @Builder
-public class UserLogin {
-    private String token;
-    private Long UserId;
-    private String role;
+public class AdminChangePasswordRequest {
     private String username;
-    private String email;
+    private String newPassword;
 }

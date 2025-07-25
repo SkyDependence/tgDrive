@@ -9,10 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserLogin {
-    private String token;
-    private Long UserId;
-    private String role;
+public class RegisterRequest {
     private String username;
-    private String email;
+    private String password;
+    private String confirmPassword;
+    private String email; // 可选字段
 }
