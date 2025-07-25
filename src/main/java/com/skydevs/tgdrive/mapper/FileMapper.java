@@ -13,7 +13,7 @@ public interface FileMapper {
      * 插入已上传文件
      * @param fileInfo
      */
-    @Insert("INSERT INTO files (file_name, download_url, upload_time, file_id, size, full_size, webdav_path, dir) VALUES (#{fileName}, #{downloadUrl}, #{uploadTime}, #{fileId}, #{size}, #{fullSize}, #{webdavPath}, #{dir})")
+    @Insert("INSERT INTO files (file_name, download_url, upload_time, file_id, size, full_size, webdav_path, dir, user_id, is_public) VALUES (#{fileName}, #{downloadUrl}, #{uploadTime}, #{fileId}, #{size}, #{fullSize}, #{webdavPath}, #{dir}, #{userId}, #{isPublic})")
     void insertFile(FileInfo fileInfo);
 
     /**
@@ -28,16 +28,28 @@ public interface FileMapper {
 
     class FileSqlProvider {
         public String getFilteredFilesQuery(String keyword, Long userId, String role) {
-            StringBuilder sql = new StringBuilder("SELECT * FROM files WHERE 1=1");
+            StringBuilder sql = new StringBuilder("SELECT f.*, u.username as uploader FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE 1=1");
+            
+            // 关键词过滤
             if (keyword != null && !keyword.isEmpty()) {
-                sql.append(" AND file_name LIKE '%").append(keyword).append("%'");
+                sql.append(" AND f.file_name LIKE '%").append(keyword).append("%'");
             }
-            if ("user".equals(role)) {
-                sql.append(" AND user_id = ").append(userId);
-            } else if ("visitor".equals(role)) {
-                sql.append(" AND is_public = 1");
+            
+            // 权限过滤
+            if ("admin".equals(role)) {
+                // admin可以查看所有文件，不添加额外条件
+            } else if ("admin_filter".equals(role)) {
+                // admin按指定用户筛选文件
+                sql.append(" AND f.user_id = ").append(userId);
+            } else if ("user".equals(role)) {
+                // user可以查看自己的文件和公开文件
+                sql.append(" AND (f.user_id = ").append(userId).append(" OR f.is_public = 1)");
+            } else if ("visitor".equals(role) || userId == null) {
+                // visitor或未登录用户只能查看公开文件
+                sql.append(" AND f.is_public = 1");
             }
-            sql.append(" ORDER BY upload_time DESC");
+            
+            sql.append(" ORDER BY f.upload_time DESC");
             return sql.toString();
         }
     }

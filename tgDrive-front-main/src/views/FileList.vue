@@ -8,10 +8,28 @@
             <span>文件列表</span>
           </div>
           <div class="header-right">
+            <el-select 
+              v-if="currentRole === 'admin'" 
+              v-model="selectedUserId" 
+              placeholder="选择用户" 
+              clearable 
+              filterable
+              style="width: 150px; margin-right: 10px;"
+              @change="handleUserChange"
+              :max-height="200"
+            >
+              <el-option label="全部用户" :value="null" />
+              <el-option 
+                v-for="user in userList" 
+                :key="user.id" 
+                :label="user.username" 
+                :value="user.id"
+              />
+            </el-select>
             <el-input v-model="searchQuery" placeholder="搜索文件名" clearable style="width: 200px; margin-right: 10px;" @keyup.enter="handleSearch" />
             <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
             <el-button type="default" @click="clearSearch" :icon="Refresh">全部</el-button>
-            <el-button type="primary" @click="openUpdateDialog" :icon="Refresh" style="margin-left: 10px;">更新 URL 前缀</el-button>
+            <el-button v-if="currentRole === 'admin'" type="primary" @click="openUpdateDialog" :icon="Refresh" style="margin-left: 10px;">更新 URL 前缀</el-button>
           </div>
         </div>
       </template>
@@ -40,15 +58,12 @@
             {{ formatUploadTime(scope.row.uploadTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="公开" width="100" align="center">
+        <el-table-column v-if="currentRole === 'admin'" prop="uploader" label="上传者" width="120" align="center">
           <template #default="scope">
-            <el-switch
-              v-if="currentRole === 'admin' || scope.row.userId === currentUserId"
-              v-model="scope.row.isPublic"
-              @change="updatePublicStatus(scope.row)"
-            />
+            {{ scope.row.uploader || '未知' }}
           </template>
         </el-table-column>
+
         <el-table-column label="操作" width="480" align="center" fixed="right">
           <template #default="scope">
             <el-button-group>
@@ -88,14 +103,8 @@
             <div class="file-meta">
               <span>大小: {{ file.size }}</span>
               <span>上传时间: {{ formatUploadTime(file.uploadTime) }}</span>
-              <div class="file-public" v-if="currentRole === 'admin' || file.userId === currentUserId">
-                <el-switch
-                  v-model="file.isPublic"
-                  @change="updatePublicStatus(file)"
-                  size="small"
-                />
-                公开
-              </div>
+              <span v-if="currentRole === 'admin'">上传者: {{ file.uploader || '未知' }}</span>
+              
             </div>
             <div class="file-actions">
               <el-button-group>
@@ -191,6 +200,7 @@ interface FileItem {
   uploadTime: number;
   userId?: number;
   isPublic: boolean;
+  uploader?: string;
 }
 
 const fileList = ref<FileItem[]>([]);
@@ -205,6 +215,23 @@ const mobileListRef = ref<HTMLElement | null>(null);
 const showPreview = ref(false);
 const previewFile = ref<FileItem | null>(null);
 const searchQuery = ref('');
+const selectedUserId = ref<number | null>(null);
+const userList = ref<{id: number, username: string}[]>([]);
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  lastLoginTime?: string;
+}
+
+// 获取当前用户信息
+const currentRole = computed(() => localStorage.getItem('role') || '');
+const currentUserId = computed(() => {
+  const userId = localStorage.getItem('userId');
+  return userId ? parseInt(userId) : null;
+});
 
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768;
@@ -228,6 +255,9 @@ const fetchFileList = async () => {
     let url = `/fileList?page=${currentPage.value}&size=${pageSize.value}`;
     if (searchQuery.value) {
       url += `&keyword=${encodeURIComponent(searchQuery.value)}`;
+    }
+    if (selectedUserId.value) {
+      url += `&userId=${selectedUserId.value}`;
     }
     const response = await request.get(url);
     if (response.data?.code === 1) {
@@ -422,6 +452,30 @@ const handleSearch = () => {
 
 const clearSearch = () => {
   searchQuery.value = '';
+  selectedUserId.value = null;
+  currentPage.value = 1;
+  fetchFileList();
+};
+
+// 获取用户列表
+const fetchUserList = async () => {
+  if (currentRole.value !== 'admin') return;
+  
+  try {
+    const response = await request.get('/auth/admin/users');
+    if (response.data?.code === 1) {
+      userList.value = response.data.data.map((user: User) => ({
+        id: user.id,
+        username: user.username
+      }));
+    }
+  } catch (error) {
+    console.error('获取用户列表失败:', error);
+  }
+};
+
+// 处理用户筛选变化
+const handleUserChange = () => {
   currentPage.value = 1;
   fetchFileList();
 };
@@ -430,6 +484,7 @@ onMounted(() => {
   checkMobile();
   window.addEventListener('resize', checkMobile);
   fetchFileList();
+  fetchUserList();
 });
 
 onBeforeUnmount(() => {
@@ -610,13 +665,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-const updatePublicStatus = async (file: FileItem) => {
-  try {
-    await request.put(`/api/file/${file.fileId}/public`, { isPublic: file.isPublic });
-    ElMessage.success('更新成功');
-  } catch (error) {
-    ElMessage.error('更新失败');
-    file.isPublic = !file.isPublic; // revert
-  }
-};

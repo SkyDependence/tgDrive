@@ -62,6 +62,10 @@
             <el-icon><Folder /></el-icon>
             <template #title>文件列表</template>
           </el-menu-item>
+          <el-menu-item index="/user-management">
+            <el-icon><User /></el-icon>
+            <template #title>用户管理</template>
+          </el-menu-item>
           <el-menu-item index="/changePassword">
             <el-icon><EditPen /></el-icon>
             <template #title>修改密码</template>
@@ -109,6 +113,10 @@
             <el-icon><Folder /></el-icon>
             <template #title>文件列表</template>
           </el-menu-item>
+          <el-menu-item index="/user-management">
+            <el-icon><User /></el-icon>
+            <template #title>用户管理</template>
+          </el-menu-item>
           <el-menu-item index="/changePassword">
             <el-icon><EditPen /></el-icon>
             <template #title>修改密码</template>
@@ -147,18 +155,14 @@
 import { ref, computed, onMounted, onBeforeUnmount, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { 
-  HomeFilled, Folder, Top, EditPen, Sunny, Moon, Expand, Fold, Download, Monitor, SwitchButton, Service, Connection, Setting
+  HomeFilled, Folder, Top, EditPen, Sunny, Moon, Expand, Fold, Download, Monitor, SwitchButton, Service, Connection, Setting, User
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { useAutoSEO } from '@/composables/useSEO'
 
 type Theme = 'light' | 'dark' | 'auto'
 
 const router = useRouter()
 const route = useRoute()
-
-// 自动加载SEO设置
-useAutoSEO()
 
 const activeMenu = computed(() => route.path)
 const isCollapsed = ref(false)

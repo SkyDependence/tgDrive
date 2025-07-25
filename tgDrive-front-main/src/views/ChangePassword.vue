@@ -4,29 +4,28 @@
       <template #header>
         <div class="card-header">
           <el-icon><Edit /></el-icon>
-          <span>修改密码</span>
+          <span>{{ isAdmin ? '管理员修改用户密码' : '修改密码' }}</span>
         </div>
       </template>
 
       <el-form 
-        :model="passwordForm" 
-        :rules="rules" 
-        ref="passwordFormRef" 
-        label-position="top"
-        @submit.prevent="changePassword"
-        class="password-form"
-      >
-        <el-form-item label="用户名" prop="username">
+          :model="passwordForm" 
+          :rules="rules" 
+          ref="passwordFormRef" 
+          label-position="top"
+          class="password-form"
+        >
+        <el-form-item v-if="isAdmin" label="用户名" prop="username">
           <el-input 
             v-model="passwordForm.username" 
             :prefix-icon="User" 
-            placeholder="请输入您的用户名"
+            placeholder="请输入要修改密码的用户名"
             size="large"
             clearable 
           />
         </el-form-item>
 
-        <el-form-item label="旧密码" prop="oldPassword">
+        <el-form-item v-if="!isAdmin" label="旧密码" prop="oldPassword">
           <el-input 
             v-model="passwordForm.oldPassword" 
             :prefix-icon="Lock" 
@@ -71,7 +70,7 @@
             size="large"
             block
           >
-            {{ loading ? '正在提交...' : '确认修改' }}
+            {{ loading ? '正在提交...' : (isAdmin ? '修改用户密码' : '确认修改') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -80,10 +79,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, FormInstance, FormRules } from 'element-plus'
-import { Lock, User, Edit, CircleCheck } from '@element-plus/icons-vue'
+import { Lock, Edit, CircleCheck, User } from '@element-plus/icons-vue'
 import request from '../utils/request'
+import { useUserStore } from '../store/user'
+
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.role === 'admin')
 
 const passwordForm = ref({
   username: '',
@@ -94,7 +97,7 @@ const passwordForm = ref({
 const passwordFormRef = ref<FormInstance>()
 const loading = ref(false)
 
-const validatePass = (rule: any, value: any, callback: any) => {
+const validateConfirmPassword = (rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入新密码'))
   } else if (value !== passwordForm.value.newPassword) {
@@ -104,20 +107,29 @@ const validatePass = (rule: any, value: any, callback: any) => {
   }
 }
 
-const rules = reactive<FormRules>({
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-  ],
-  oldPassword: [
-    { required: true, message: '请输入旧密码', trigger: 'blur' },
-  ],
-  newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 16, message: '密码长度应为 6 到 16 个字符', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, validator: validatePass, trigger: 'blur' }
-  ]
+const rules = computed(() => {
+  const baseRules: FormRules = {
+    newPassword: [
+      { required: true, message: '请输入新密码', trigger: 'blur' },
+      { min: 6, max: 16, message: '密码长度为6-16位', trigger: 'blur' }
+    ],
+    confirmPassword: [
+      { required: true, message: '请确认新密码', trigger: 'blur' },
+      { validator: validateConfirmPassword, trigger: 'blur' }
+    ]
+  }
+  
+  if (isAdmin.value) {
+    baseRules.username = [
+      { required: true, message: '请输入用户名', trigger: 'blur' }
+    ]
+  } else {
+    baseRules.oldPassword = [
+      { required: true, message: '请输入旧密码', trigger: 'blur' }
+    ]
+  }
+  
+  return baseRules
 })
 
 const changePassword = () => {
@@ -126,11 +138,20 @@ const changePassword = () => {
 
     loading.value = true
     try {
-      const response = await request.post('/auth/change-password', {
-        username: passwordForm.value.username,
-        oldPassword: passwordForm.value.oldPassword,
-        newPassword: passwordForm.value.newPassword
-      })
+      let response
+      if (isAdmin.value) {
+        // 管理员修改用户密码
+        response = await request.post('/auth/admin/change-password', {
+          username: passwordForm.value.username,
+          newPassword: passwordForm.value.newPassword
+        })
+      } else {
+        // 普通用户修改自己的密码
+        response = await request.post('/auth/change-password', {
+          oldPassword: passwordForm.value.oldPassword,
+          newPassword: passwordForm.value.newPassword
+        })
+      }
 
       if (response.data.code === 1) {
         ElMessage.success('密码修改成功')

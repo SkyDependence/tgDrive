@@ -13,4 +13,6 @@ public class UserLogin {
     private String token;
     private Long UserId;
     private String role;
+    private String username;
+    private String email;
 }

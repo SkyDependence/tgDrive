@@ -22,7 +22,7 @@
           <el-input 
             v-model="loginForm.username" 
             :prefix-icon="User" 
-            placeholder="请输入用户名" 
+            placeholder="请输入用户名或邮箱" 
             size="large"
             clearable 
           />
@@ -59,6 +59,17 @@
             {{ loading ? '登录中...' : '登 录' }}
           </el-button>
         </el-form-item>
+
+        <el-form-item class="register-link">
+          <div class="register-prompt">
+            <span class="prompt-text">没有账户？</span>
+            <router-link to="/register" class="register-btn">
+              <el-button type="primary" plain size="small">
+                立即注册
+              </el-button>
+            </router-link>
+          </div>
+        </el-form-item>
       </el-form>
     </div>
   </div>
@@ -70,8 +81,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from 'element-plus'
 import { User, Lock, Cloudy } from '@element-plus/icons-vue'
 import request from '../utils/request'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loginForm = ref({
   username: '',
   password: ''
@@ -92,6 +105,8 @@ const rules: FormRules = {
 }
 
 const handleLogin = () => {
+  if (loading.value) return // 防止重复提交
+  
   loginFormRef.value?.validate(async (valid) => {
     if (!valid) return
 
@@ -104,17 +119,30 @@ const handleLogin = () => {
 
       if (response.data.code === 1) {
         const userLogin = response.data.data
-        localStorage.setItem('token', userLogin.token)
-        localStorage.setItem('role', userLogin.role)
-        localStorage.setItem('userId', userLogin.UserId)
+        
+        // 使用store设置用户信息
+        userStore.setUserInfo({
+          token: userLogin.token,
+          role: userLogin.role,
+          userId: userLogin.UserId,
+          username: userLogin.username,
+          email: userLogin.email
+        })
 
         if (rememberMe.value) {
-          localStorage.setItem('username', loginForm.value.username)
+          localStorage.setItem('rememberedUsername', loginForm.value.username)
         } else {
-          localStorage.removeItem('username')
+          localStorage.removeItem('rememberedUsername')
         }
         ElMessage.success(response.data.msg || '登录成功')
-        router.push('/home')
+        // 根据用户角色跳转到对应页面
+        if (userLogin.role === 'admin') {
+          router.push('/home')
+        } else if (userLogin.role === 'user') {
+          router.push('/user/home')
+        } else {
+          router.push('/')
+        }
       } else {
         ElMessage.error(response.data.msg || '登录失败')
       }
@@ -212,6 +240,40 @@ onMounted(() => {
 
 .login-button {
   width: 100%;
+}
+
+.register-link {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.register-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.prompt-text {
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+}
+
+.register-btn {
+  text-decoration: none;
+}
+
+.register-btn .el-button {
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.register-btn .el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
 /* 响应式设计 */
