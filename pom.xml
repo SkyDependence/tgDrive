@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.skydevs</groupId>
-    <artifactId>STdrive</artifactId>
+    <artifactId>tgDrive</artifactId>
     <version>0.1</version>
-    <name>STdrive</name>
-    <description>STdrive</description>
+    <name>tgDrive</name>
+    <description>tgDrive</description>
     <url/>
     <licenses>
         <license/>

@@ -259,4 +259,4 @@ If you find this project helpful, you're welcome to:
 - 🔄 Share it with more friends
 - 🐛 Submit Issues or Pull Requests
 
-Your support is the driving force behind the project's continuous development!
+Your support is the driving force behind the project's continued development!
