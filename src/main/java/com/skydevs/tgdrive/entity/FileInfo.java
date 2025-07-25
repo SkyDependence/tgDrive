@@ -24,5 +24,7 @@ public class FileInfo {
     private Long userId;
 
     private boolean isPublic = false;
+    
+    private String uploader; // 上传者用户名
 }
 

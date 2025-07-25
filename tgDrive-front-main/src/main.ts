@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import type { App as AppType } from 'vue';
+import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './routers';
 // 按需导入Element Plus样式
@@ -11,6 +12,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
 const app: AppType = createApp(App);
+const pinia = createPinia();
 
 // 注册Element Plus图标（仅注册常用图标以减少包大小）
 const commonIcons = [
@@ -41,6 +43,9 @@ const showMessage = (message: string, type: 'success' | 'warning' | 'info' | 'er
 
 // Element Plus已通过unplugin-vue-components自动按需导入
 // 无需手动配置全量导入
+
+// Use Pinia
+app.use(pinia);
 
 // Use router
 app.use(router);

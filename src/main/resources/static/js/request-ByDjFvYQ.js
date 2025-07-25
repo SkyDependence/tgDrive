@@ -1,1 +1,0 @@
-import{a as e}from"./utils-CuRI1GyR.js";const t=e.create({baseURL:"/api",timeout:216e5});t.interceptors.request.use(e=>{const t=localStorage.getItem("token");return t&&(e.headers.Authorization=`Bearer ${t}`),e},e=>Promise.reject(e)),t.interceptors.response.use(e=>e,e=>(e.response&&401===e.response.status&&(window.location.href="/login"),Promise.reject(e)));export{t as s};

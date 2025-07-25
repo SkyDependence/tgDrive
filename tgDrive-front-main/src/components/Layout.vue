@@ -23,26 +23,61 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+          <!-- 普通用户导航 - 大屏幕显示按钮 -->
+          <div v-if="isLoggedIn && userRole === 'user'" class="user-nav-desktop">
+            <el-button type="text" @click="goToUserHome">我的文件</el-button>
+            <el-button type="text" @click="goToUpload">上传文件</el-button>
+            <el-button type="text" @click="goToChangePassword">修改密码</el-button>
+          </div>
+          
+          <!-- 普通用户导航 - 小屏幕显示下拉菜单 -->
+          <el-dropdown v-if="isLoggedIn && userRole === 'user'" class="user-nav-mobile" @command="handleNavCommand" trigger="click">
+            <el-button type="text" :icon="Menu">
+              菜单
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="home" :icon="Folder">我的文件</el-dropdown-item>
+                <el-dropdown-item command="upload" :icon="Upload">上传文件</el-dropdown-item>
+                <el-dropdown-item command="password" :icon="Lock">修改密码</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          
           <el-button type="info" plain @click="goToAbout">关于</el-button>
-          <el-button type="primary" plain @click="goToAdmin">管理</el-button>
+          <el-button v-if="userRole === 'admin'" type="primary" plain @click="goToAdmin">管理</el-button>
           
           <!-- 根据登录状态显示不同的按钮 -->
           <el-button v-if="!isLoggedIn" type="primary" @click="goToLogin">登录</el-button>
           <el-dropdown v-else @command="handleUserCommand" trigger="click">
-            <el-avatar
-              :size="32"
-              src="/110871356.jpg"
-              style="cursor: pointer;"
-            />
+            <div class="user-info">
+              <el-avatar
+                :size="32"
+                src="/110871356.jpg"
+                style="cursor: pointer;"
+              />
+              <div class="user-details">
+                <div class="username">{{ currentUsername }}</div>
+                <div class="user-role">{{ userRoleText }}</div>
+              </div>
+            </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout" :icon="SwitchButton">退出登录</el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <div class="dropdown-user-info">
+                    <div class="dropdown-username">{{ currentUsername }}</div>
+                    <div class="dropdown-email">{{ currentEmail }}</div>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout" :icon="SwitchButton">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
       </div>
     </el-header>
+
+    <!-- 导航菜单已移至顶部header中 -->
 
     <el-main class="main-content">
       <router-view v-slot="{ Component }">
@@ -58,23 +93,32 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Sunny, Moon, Cloudy, Monitor, SwitchButton } from '@element-plus/icons-vue'
+import { Sunny, Moon, Cloudy, Monitor, SwitchButton, Menu, Folder, Upload, Lock } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { useAutoSEO } from '@/composables/useSEO'
+import { useUserStore } from '@/store/user'
 
 type Theme = 'light' | 'dark' | 'auto'
 
 const router = useRouter()
 const theme = ref<Theme>('auto')
+const userStore = useUserStore()
 
-// 自动加载SEO设置
-useAutoSEO()
+// 使用store中的用户状态
+const isLoggedIn = computed(() => userStore.isLoggedIn)
+const userRole = computed(() => userStore.role)
+const currentUsername = computed(() => userStore.username || '用户')
+const currentEmail = computed(() => userStore.email || '')
+const userRoleText = computed(() => userStore.userRoleText)
 
-// 登录状态检查
-const isLoggedIn = computed(() => {
-  const token = localStorage.getItem('token')
-  return !!token
+// 当前激活的菜单项
+const activeIndex = computed(() => {
+  return router.currentRoute.value.path
 })
+
+// 处理菜单选择
+const handleMenuSelect = (index: string) => {
+  router.push(index)
+}
 
 // --- Theme Switching Logic ---
 const themeIcon = computed(() => {
@@ -120,6 +164,9 @@ const applyBackgroundSettings = (settings: any) => {
 
 // --- Component Lifecycle ---
 onMounted(() => {
+  // 初始化用户信息
+  userStore.initUserInfo()
+  
   const savedTheme = localStorage.getItem('theme') as Theme | null
   theme.value = savedTheme || 'auto'
   applyTheme()
@@ -162,6 +209,36 @@ const handleUserCommand = (command: string) => {
   }
 }
 
+// 导航到用户主页
+const goToUserHome = () => {
+  router.push('/user/home')
+}
+
+// 导航到上传页面
+const goToUpload = () => {
+  router.push('/user/upload')
+}
+
+// 导航到修改密码页面
+const goToChangePassword = () => {
+  router.push('/user/changePassword')
+}
+
+// 处理导航下拉菜单命令
+const handleNavCommand = (command: string) => {
+  switch (command) {
+    case 'home':
+      goToUserHome()
+      break
+    case 'upload':
+      goToUpload()
+      break
+    case 'password':
+      goToChangePassword()
+      break
+  }
+}
+
 // 退出登录
 const handleLogout = () => {
   ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
@@ -169,8 +246,7 @@ const handleLogout = () => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('role')
+    userStore.clearUserInfo()
     ElMessage.success('已退出登录')
     router.push('/login')
   }).catch(() => {
@@ -267,6 +343,58 @@ const handleLogout = () => {
   gap: 15px;
 }
 
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  line-height: 1;
+}
+
+.user-role {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  line-height: 1;
+}
+
+.dropdown-user-info {
+  padding: 8px 0;
+  text-align: center;
+}
+
+.dropdown-username {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  margin-bottom: 4px;
+}
+
+.dropdown-email {
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
+}
+
 .main-content {
   display: flex;
   justify-content: center;
@@ -290,6 +418,27 @@ const handleLogout = () => {
   opacity: 0;
 }
 
+/* 用户导航菜单样式 */
+.user-nav-menu {
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--container-bg-color);
+  justify-content: center;
+}
+
+.user-nav-menu .el-menu-item {
+  color: var(--text-color);
+  border-bottom: 2px solid transparent;
+}
+
+.user-nav-menu .el-menu-item:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.user-nav-menu .el-menu-item.is-active {
+  color: var(--el-color-primary);
+  border-bottom-color: var(--el-color-primary);
+}
+
 /* 响应式设计 */
 /* 超小屏幕 (手机, 小于576px) */
 @media (max-width: 575.98px) {
@@ -297,7 +446,39 @@ const handleLogout = () => {
     height: 60px;
     padding: 8px 0;
   }
+  
+  .user-nav-menu {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .user-nav-menu .el-menu-item {
+    height: 40px;
+    line-height: 40px;
+  }
+  
+  .user-details {
+    display: none;
+  }
+  
+  .actions {
+    gap: 8px;
+  }
+}
 
+/* 中等屏幕 (平板, 576px-768px) */
+@media (max-width: 768px) {
+  .username {
+    font-size: 13px;
+  }
+  
+  .user-role {
+    font-size: 11px;
+  }
+}
+
+/* 超小屏幕样式继续 */
+@media (max-width: 575.98px) {
   .header-content {
     padding: 0 8px;
     flex-direction: row;
@@ -460,6 +641,48 @@ const handleLogout = () => {
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .header {
     border-bottom-width: 0.5px;
+  }
+}
+
+/* 用户导航响应式样式 */
+.user-nav-desktop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-nav-mobile {
+  display: none;
+}
+
+/* 小屏幕时隐藏桌面导航，显示移动端下拉菜单 */
+@media (max-width: 768px) {
+  .user-nav-desktop {
+    display: none;
+  }
+  
+  .user-nav-mobile {
+    display: block;
+  }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+  .header-content {
+    padding: 0 12px;
+  }
+  
+  .actions {
+    gap: 4px;
+  }
+  
+  .actions .el-button {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .user-nav-mobile .el-button {
+    padding: 8px 10px;
   }
 }
 </style>

@@ -36,11 +36,35 @@
       <div class="section">
         <h2 class="section-title">
           <el-icon><User /></el-icon>
-          项目作者
+          项目开发者
         </h2>
         
         <!-- 开发者信息 -->
         <div class="authors-row">
+          <!-- 底层代码编写者 -->
+          <div class="author-card foundation-author">
+            <div class="author-avatar">
+              <img src="/127601663.png" alt="CszNet" class="avatar-img csznet-avatar" />
+            </div>
+            <div class="author-details">
+              <h3 class="author-name">
+                CszNet
+                <el-tag type="danger" size="small" class="author-tag">底层代码编写者</el-tag>
+              </h3>
+              <p class="author-description">此项目上传功能也就是最基础功能的底层代码编写者</p>
+              <div class="author-links">
+                <el-tag type="info" size="small" @click="openLink('https://github.com/csznet')" class="clickable-tag">
+                  <el-icon><Link /></el-icon>
+                  GitHub: csznet
+                </el-tag>
+                <el-tag type="primary" size="small" @click="openLink('https://github.com/csznet/tgState')" class="clickable-tag">
+                  <el-icon><Link /></el-icon>
+                  项目地址: tgState
+                </el-tag>
+              </div>
+            </div>
+          </div>
+          
           <!-- 原始作者 -->
           <div class="author-card original-author">
             <div class="author-avatar">
@@ -49,7 +73,7 @@
             <div class="author-details">
               <h3 class="author-name">
                 SkyDev
-                <el-tag type="warning" size="small" class="author-tag">原始开创者</el-tag>
+                <el-tag type="warning" size="small" class="author-tag">本项目开创者</el-tag>
               </h3>
               <p class="author-description">tgDrive 项目的原始作者和开创者，为我们提供了优秀的基础框架</p>
               <div class="author-links">
@@ -66,20 +90,20 @@
           </div>
           
           <!-- 当前维护者 -->
-          <div class="author-card">
+          <div class="author-card current-contributor">
             <div class="author-avatar">
               <img src="/favicon.ico" alt="Stanley-DEV" class="avatar-img" />
             </div>
             <div class="author-details">
               <h3 class="author-name">
                 Stanley-DEV
-                <el-tag type="success" size="small" class="author-tag">当前维护者</el-tag>
+                <el-tag type="success" size="small" class="author-tag">当前贡献者</el-tag>
               </h3>
               <p class="author-description">负责项目优化和维护，改进文件管理、上传体验等功能</p>
               <div class="author-links">
-                <el-tag type="info" size="small">
+                <el-tag type="info" size="small" @click="openLink('https://github.com/StanleyLegEnd1024')" class="clickable-tag">
                   <el-icon><Link /></el-icon>
-                  开源贡献者
+                  GitHub: StanleyLegEnd1024
                 </el-tag>
                 <el-tag type="primary" size="small" @click="openLink('https://me.lixvyao.com')" class="clickable-tag">
                   <el-icon><Link /></el-icon>
@@ -232,11 +256,17 @@
         </div>
       </div>
     </el-card>
+    
+    <!-- 彩蛋图片 -->
+    <div class="easter-egg" @click="shakeScreen">
+      <img :src="randomAvatar" alt="Easter Egg" class="easter-egg-img" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
 import {
   InfoFilled,
   Document,
@@ -258,12 +288,38 @@ import {
 
 const router = useRouter();
 
+// 三个作者的头像数组
+const authorAvatars = [
+  '/127601663.png',     // CszNet
+  '/skydev-avatar.jpg', // SkyDev
+  '/favicon.ico'        // Stanley-DEV
+];
+
+// 随机选择的头像
+const randomAvatar = ref('');
+
+// 组件挂载时随机选择头像
+onMounted(() => {
+  const randomIndex = Math.floor(Math.random() * authorAvatars.length);
+  randomAvatar.value = authorAvatars[randomIndex];
+});
+
 const goHome = () => {
   router.push('/');
 };
 
 const openLink = (url: string) => {
   window.open(url, '_blank');
+};
+
+const shakeScreen = () => {
+  const body = document.body;
+  body.classList.add('shake-animation');
+  
+  // 移除动画类，以便下次点击时可以重新触发
+  setTimeout(() => {
+    body.classList.remove('shake-animation');
+  }, 500);
 };
 </script>
 
@@ -369,8 +425,8 @@ const openLink = (url: string) => {
 }
 
 .author-card.original-author {
-  background-color: var(--el-color-warning-light-9);
   border: 2px solid var(--el-color-warning);
+  box-shadow: 0 4px 15px rgba(230, 162, 60, 0.2) !important;
 }
 
 .author-avatar {
@@ -727,6 +783,71 @@ const openLink = (url: string) => {
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .avatar-img {
     image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* 彩蛋样式 */
+.easter-egg {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  pointer-events: auto;
+}
+
+.easter-egg:hover {
+  transform: scale(1.1);
+}
+
+.easter-egg-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.2s ease;
+  display: block;
+  object-fit: cover;
+}
+
+.easter-egg:hover .easter-egg-img {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* CszNet作者卡片红色边框 */
+.foundation-author {
+  border: 2px solid #ff4757 !important;
+  box-shadow: 0 4px 15px rgba(255, 71, 87, 0.2) !important;
+}
+
+/* Stanley作者卡片绿色边框 */
+.current-contributor {
+  border: 2px solid #2ed573 !important;
+  box-shadow: 0 4px 15px rgba(46, 213, 115, 0.2) !important;
+}
+
+/* 摇晃动画 */
+:global(.shake-animation) {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .easter-egg {
+    bottom: 15px;
+    right: 15px;
+  }
+  
+  .easter-egg-img {
+    width: 50px;
+    height: 50px;
   }
 }
 </style>

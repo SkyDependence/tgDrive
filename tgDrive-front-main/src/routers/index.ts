@@ -5,6 +5,7 @@ const Upload = () => import('../views/UploadPage.vue');
 const Home = () => import('../views/Home.vue');
 const FileList = () => import('../views/FileList.vue');
 const Login = () => import('../views/LoginPage.vue');
+const Register = () => import('../views/registerpage.vue');
 
 const AboutPage = () => import('../views/AboutPage.vue');
 const Layout = () => import('@/components/Layout.vue');
@@ -13,11 +14,12 @@ const ChangePassword = () => import('../views/ChangePassword.vue');
 const BackupPage = () => import('../views/BackupPage.vue');
 const BotKeepAlivePage = () => import('../views/BotKeepAlivePage.vue');
 const WebDavConfigPage = () => import('../views/WebDavConfigPage.vue');
+const UserManagement = () => import('../views/UserManagement.vue');
 
 
 interface RouteMeta extends Record<string | number | symbol, unknown> {
   requiresAuth?: boolean;
-  requiredRole?: 'admin' | 'visitor';
+  requiredRole?: 'admin' | 'visitor' | 'user';
 }
 
 const routes: Array<RouteRecordRaw> = [
@@ -40,6 +42,40 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'about',
         component: AboutPage,
+      }
+    ]
+  },
+  {
+    path: '/user',
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+      requiredRole: 'user'
+    } as RouteMeta,
+    children: [
+      {
+        path: 'home',
+        component: FileList,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'user'
+        } as RouteMeta
+      },
+      {
+        path: 'upload',
+        component: Upload,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'user'
+        } as RouteMeta
+      },
+      {
+        path: 'changePassword',
+        component: ChangePassword,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'user'
+        } as RouteMeta
       }
     ]
   },
@@ -99,12 +135,24 @@ const routes: Array<RouteRecordRaw> = [
           requiredRole: 'admin'
         } as RouteMeta
       },
+      {
+        path: 'user-management',
+        component: UserManagement,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'admin'
+        } as RouteMeta
+      },
 
     ]
   },
   { 
     path: '/login', 
     component: Login 
+  },
+  { 
+    path: '/register', 
+    component: Register 
   },
   {
     path: '/:pathMatch(.*)*',
@@ -133,8 +181,17 @@ router.beforeEach((to, from, next) => {
       next();
     } else if (userRole === 'visitor' && to.meta.requiredRole === 'visitor') {
       next();
+    } else if (userRole === 'user' && to.meta.requiredRole === 'user') {
+      next();
     } else {
-      next('/'); // 无权限用户重定向到首页
+      // 根据角色重定向到对应的首页
+      if (userRole === 'admin') {
+        next('/home');
+      } else if (userRole === 'user') {
+        next('/user/home');
+      } else {
+        next('/');
+      }
     }
     return;
   }

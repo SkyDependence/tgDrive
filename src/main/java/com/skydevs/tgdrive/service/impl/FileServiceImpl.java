@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.exception.FailedToGetSizeException;
+import com.skydevs.tgdrive.exception.InsufficientPermissionException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.service.DownloadService;
@@ -99,6 +100,8 @@ public class FileServiceImpl implements FileService {
                         .fullSize(0L)
                         .webdavPath(dirPath)
                         .dir(true)
+                        .userId(null) // WebDAV目录不关联用户
+                        .isPublic(true) // WebDAV目录默认公开
                         .build();
                 fileMapper.insertFile(dirInfo);
                 log.info("新增文件夹路径{}", dirPath);
@@ -107,6 +110,8 @@ public class FileServiceImpl implements FileService {
             // 优先使用自定义URL，如果没有配置则使用请求中的URL
             String customUrl = telegramBotService.getCustomUrl();
             String prefix = (customUrl != null && !customUrl.trim().isEmpty()) ? customUrl.trim() : StringUtil.getPrefix(request);
+            
+            // WebDAV上传的文件默认设置为公开，因为WebDAV通常用于共享
             FileInfo fileInfo = FileInfo.builder()
                     .fileId(fileId)
                     .fileName(fileName)
@@ -114,7 +119,10 @@ public class FileServiceImpl implements FileService {
                     .size(UserFriendly.humanReadableFileSize(size))
                     .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
                     .downloadUrl(prefix + "/d/" + fileId)
-                    .webdavPath(path).build();
+                    .webdavPath(path)
+                    .userId(null) // WebDAV上传暂时不关联用户
+                    .isPublic(true) // WebDAV文件默认公开
+                    .build();
             fileMapper.insertFile(fileInfo);
             return fileId;
         } catch (Exception e) {
@@ -201,7 +209,7 @@ public class FileServiceImpl implements FileService {
                 throw new RuntimeException("文件删除失败", e);
             }
         } else {
-            throw new RuntimeException("无权限删除此文件");
+            throw new InsufficientPermissionException("无权限删除此文件");
         }
     }
 
@@ -214,7 +222,7 @@ public class FileServiceImpl implements FileService {
         if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
             fileMapper.updateIsPublic(fileId, isPublic);
         } else {
-            throw new RuntimeException("无权限更新此文件");
+            throw new InsufficientPermissionException("无权限更新此文件");
         }
     }
 }

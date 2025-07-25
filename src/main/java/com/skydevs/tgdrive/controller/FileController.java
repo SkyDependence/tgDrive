@@ -66,14 +66,22 @@ public class FileController {
      * @return
      */
     @GetMapping("/fileList")
-    public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String keyword) {
-        Long userId = null;
+    public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String keyword, @RequestParam(required = false) Long userId) {
+        Long currentUserId = null;
         String role = "visitor";
         if (StpUtil.isLogin()) {
-            userId = StpUtil.getLoginIdAsLong();
+            currentUserId = StpUtil.getLoginIdAsLong();
             role = StpUtil.getSession().getString("role");
         }
-        PageResult pageResult = fileService.getFileList(page, size, keyword, userId, role);
+        
+        // 如果是管理员且指定了userId参数，则按指定用户筛选
+        Long filterUserId = currentUserId;
+        if ("admin".equals(role) && userId != null) {
+            filterUserId = userId;
+            role = "admin_filter"; // 特殊角色标识，用于在mapper中处理
+        }
+        
+        PageResult pageResult = fileService.getFileList(page, size, keyword, filterUserId, role);
         return Result.success(pageResult);
     }
 
