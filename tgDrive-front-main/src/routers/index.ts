@@ -15,6 +15,8 @@ const BackupPage = () => import('../views/BackupPage.vue');
 const BotKeepAlivePage = () => import('../views/BotKeepAlivePage.vue');
 const WebDavConfigPage = () => import('../views/WebDavConfigPage.vue');
 const UserManagement = () => import('../views/UserManagement.vue');
+const UserAgreementPage = () => import('@/views/UserAgreementPage.vue')
+const PrivacyPolicyPage = () => import('@/views/PrivacyPolicyPage.vue')
 
 
 interface RouteMeta extends Record<string | number | symbol, unknown> {
@@ -42,6 +44,14 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'about',
         component: AboutPage,
+      },
+      {
+        path: 'agreement',
+        component: UserAgreementPage,
+      },
+      {
+        path: 'privacy',
+        component: PrivacyPolicyPage,
       }
     ]
   },

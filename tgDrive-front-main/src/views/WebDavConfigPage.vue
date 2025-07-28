@@ -134,18 +134,20 @@
 
         <!-- 操作按钮 -->
         <el-form-item>
-          <el-button type="primary" @click="saveConfig" :loading="saving">
-            <el-icon><Check /></el-icon>
-            保存配置
-          </el-button>
-          <el-button @click="resetConfig">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-          <el-button @click="resetToDefault" :loading="resetting">
-            <el-icon><RefreshLeft /></el-icon>
-            恢复默认
-          </el-button>
+          <div class="button-group">
+            <el-button type="primary" @click="saveConfig" :loading="saving">
+              <el-icon><Check /></el-icon>
+              保存配置
+            </el-button>
+            <el-button @click="resetConfig">
+              <el-icon><Refresh /></el-icon>
+              重置
+            </el-button>
+            <el-button @click="resetToDefault" :loading="resetting">
+              <el-icon><RefreshLeft /></el-icon>
+              恢复默认
+            </el-button>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -354,13 +356,52 @@ const handleEnabledChange = (value: boolean) => {
 
 // 复制WebDAV URL
 const copyUrl = async () => {
-  try {
-    await navigator.clipboard.writeText(webdavUrl.value)
-    ElMessage.success('WebDAV地址已复制到剪贴板')
-  } catch (error) {
-    console.error('复制失败:', error)
-    ElMessage.error('复制失败')
+  const text = webdavUrl.value;
+  const message = 'WebDAV地址已复制到剪贴板';
+  
+  // 优先使用现代的 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      ElMessage.success(message);
+    } catch (error) {
+      console.error('Clipboard API failed:', error);
+      fallbackCopyTextToClipboard(text, message);
+    }
+  } else {
+    // 降级到传统方法
+    fallbackCopyTextToClipboard(text, message);
   }
+};
+
+// 传统的复制方法作为降级方案
+const fallbackCopyTextToClipboard = (text: string, message: string) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  
+  // 避免滚动到底部
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      ElMessage.success(message);
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    ElMessage.error('复制失败，请手动复制');
+  }
+  
+  document.body.removeChild(textArea);
 }
 
 // 组件挂载时加载配置
@@ -456,6 +497,20 @@ onMounted(() => {
   color: var(--el-text-color-primary);
 }
 
+/* 去除卡片圆角 */
+.config-card,
+.usage-card {
+  :deep(.el-card) {
+    border-radius: 0;
+  }
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .webdav-config-container {
@@ -471,6 +526,35 @@ onMounted(() => {
   .webdav-url {
     flex-direction: column;
     align-items: stretch;
+  }
+  
+  .button-group {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  
+  .button-group :deep(.el-button) {
+    flex: 0 0 auto;
+    min-width: 80px;
+    max-width: 120px;
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    white-space: nowrap;
+  }
+  
+  .config-form :deep(.el-form-item:last-child) {
+    text-align: center;
+    margin-bottom: 0;
+  }
+  
+  .config-form :deep(.el-form-item:last-child .el-form-item__content) {
+    justify-content: center;
+    margin-left: 0 !important;
   }
 }
 </style>

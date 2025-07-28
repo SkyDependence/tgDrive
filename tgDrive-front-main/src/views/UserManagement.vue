@@ -9,8 +9,10 @@
           </div>
           <div class="header-right">
             <el-input v-model="searchQuery" placeholder="搜索用户名或邮箱" clearable style="width: 200px; margin-right: 10px;" @keyup.enter="handleSearch" />
-            <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
-            <el-button type="default" @click="clearSearch" :icon="Refresh">刷新</el-button>
+            <div class="search-button-group">
+              <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
+              <el-button type="default" @click="clearSearch" :icon="Refresh">刷新</el-button>
+            </div>
           </div>
         </div>
       </template>
@@ -63,7 +65,11 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip>
+          <template #default="scope">
+            {{ scope.row.role === 'admin' ? (scope.row.email || 'admin@tgdrive.cfd') : scope.row.email }}
+          </template>
+        </el-table-column>
         <el-table-column prop="role" label="角色" width="100" align="center">
           <template #default="scope">
             <el-tag :type="getRoleTagType(scope.row.role)">{{ getRoleText(scope.row.role) }}</el-tag>
@@ -74,15 +80,24 @@
             {{ scope.row.reserved1 || '从未登录' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        <el-table-column label="操作" width="280" align="center" fixed="right">
           <template #default="scope">
             <el-button-group>
+              <el-button 
+                type="primary" 
+                size="small" 
+                @click="openSetRoleDialog(scope.row)" 
+                :icon="User"
+                :disabled="scope.row.username === 'visitor'"
+              >
+                设角色
+              </el-button>
               <el-button 
                 type="warning" 
                 size="small" 
                 @click="openChangePasswordDialog(scope.row)" 
                 :icon="EditPen"
-                :disabled="scope.row.role === 'admin'"
+                :disabled="scope.row.username === 'visitor'"
               >
                 改密
               </el-button>
@@ -91,7 +106,7 @@
                 size="small" 
                 @click="deleteUser(scope.row)" 
                 :icon="Delete"
-                :disabled="scope.row.role === 'admin'"
+                :disabled="scope.row.role === 'admin' || scope.row.username === 'visitor'"
               >
                 删除
               </el-button>
@@ -125,11 +140,20 @@
             <div class="user-actions">
               <el-button-group>
                 <el-button 
+                  type="primary" 
+                  size="small" 
+                  @click="openSetRoleDialog(user)" 
+                  :icon="User" 
+                  :disabled="user.username === 'visitor'"
+                >
+                  设角色
+                </el-button>
+                <el-button 
                   type="warning" 
                   size="small" 
                   @click="openChangePasswordDialog(user)" 
                   :icon="EditPen" 
-                  :disabled="user.role === 'admin'"
+                  :disabled="user.username === 'visitor'"
                 >
                   改密
                 </el-button>
@@ -138,7 +162,7 @@
                   size="small" 
                   @click="deleteUser(user)" 
                   :icon="Delete" 
-                  :disabled="user.role === 'admin'"
+                  :disabled="user.role === 'admin' || user.username === 'visitor'"
                 >
                   删除
                 </el-button>
@@ -191,6 +215,42 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 设置角色对话框 -->
+    <el-dialog
+      v-model="setRoleDialogVisible"
+      title="设置用户角色"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="setRoleFormRef"
+        :model="setRoleForm"
+        :rules="setRoleRules"
+        label-width="100px"
+      >
+        <el-form-item label="用户名">
+          <el-input v-model="setRoleForm.username" disabled />
+        </el-form-item>
+        <el-form-item label="当前角色">
+          <el-tag :type="getRoleTagType(setRoleForm.currentRole)">{{ getRoleText(setRoleForm.currentRole) }}</el-tag>
+        </el-form-item>
+        <el-form-item label="新角色" prop="newRole">
+          <el-select v-model="setRoleForm.newRole" placeholder="请选择新角色" style="width: 100%">
+            <el-option label="管理员" value="admin" />
+            <el-option label="普通用户" value="user" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="setRoleDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmSetRole" :loading="setRoleLoading">
+            确定
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -216,6 +276,12 @@ interface ChangePasswordForm {
   confirmPassword: string
 }
 
+interface SetRoleForm {
+  username: string
+  currentRole: string
+  newRole: string
+}
+
 const userList = ref<UserItem[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
@@ -223,6 +289,9 @@ const isMobile = ref(false)
 const changePasswordDialogVisible = ref(false)
 const changePasswordLoading = ref(false)
 const changePasswordFormRef = ref<FormInstance>()
+const setRoleDialogVisible = ref(false)
+const setRoleLoading = ref(false)
+const setRoleFormRef = ref<FormInstance>()
 const selectedUser = ref<UserItem | null>(null)
 
 // 用户统计数据
@@ -234,6 +303,12 @@ const changePasswordForm = ref<ChangePasswordForm>({
   username: '',
   newPassword: '',
   confirmPassword: ''
+})
+
+const setRoleForm = ref<SetRoleForm>({
+  username: '',
+  currentRole: '',
+  newRole: ''
 })
 
 const changePasswordRules = {
@@ -253,6 +328,12 @@ const changePasswordRules = {
       },
       trigger: 'blur'
     }
+  ]
+}
+
+const setRoleRules = {
+  newRole: [
+    { required: true, message: '请选择新角色', trigger: 'change' }
   ]
 }
 
@@ -368,6 +449,47 @@ const confirmChangePassword = async () => {
   }
 }
 
+const openSetRoleDialog = (user: UserItem) => {
+  selectedUser.value = user
+  setRoleForm.value = {
+    username: user.username,
+    currentRole: user.role,
+    newRole: user.role
+  }
+  setRoleDialogVisible.value = true
+}
+
+const confirmSetRole = async () => {
+  if (!setRoleFormRef.value) return
+  
+  try {
+    await setRoleFormRef.value.validate()
+    
+    if (setRoleForm.value.newRole === setRoleForm.value.currentRole) {
+      ElMessage.warning('新角色与当前角色相同')
+      return
+    }
+    
+    setRoleLoading.value = true
+    
+    const response = await request.put(`/auth/admin/users/${selectedUser.value?.id}/role?role=${setRoleForm.value.newRole}`)
+    
+    if (response.data?.code === 1) {
+      ElMessage.success('用户角色设置成功')
+      setRoleDialogVisible.value = false
+      fetchUserList() // 刷新用户列表
+    } else {
+      ElMessage.error(response.data?.msg || '角色设置失败')
+    }
+  } catch (error: any) {
+    if (error !== 'validation failed') {
+      ElMessage.error('角色设置失败: ' + (error.response?.data?.msg || error.message))
+    }
+  } finally {
+    setRoleLoading.value = false
+  }
+}
+
 const deleteUser = async (user: UserItem) => {
   if (user.role === 'admin') {
     ElMessage.warning('不能删除管理员账户')
@@ -441,6 +563,19 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 18px;
   font-weight: 500;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.search-button-group {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 :deep(.el-card__body) {
@@ -623,33 +758,43 @@ onBeforeUnmount(() => {
     width: 100% !important;
   }
 
-  .card-header .header-right .el-button {
+  .search-button-group {
+    display: flex;
+    gap: 8px;
     width: 100%;
+  }
+
+  .search-button-group .el-button {
+    flex: 1;
   }
 
   /* 移动端统计卡片样式 */
   .stats-container {
-    flex-direction: column;
-    gap: 10px;
-    padding: 15px;
+    flex-direction: row;
+    gap: 8px;
+    padding: 10px;
   }
 
   .stat-card {
-    padding: 15px;
+    padding: 10px;
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
   }
 
   .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    margin: 0 auto;
   }
 
   .stat-number {
-    font-size: 24px;
+    font-size: 18px;
   }
 
   .stat-label {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   /* 移动端用户列表优化 */

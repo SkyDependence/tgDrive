@@ -40,12 +40,89 @@ html.dark {
   --el-fill-color-blank: transparent;
 }
 
+/* 主题切换时的全局动画效果 */
+.theme-switching * {
+  transition: background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              border-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+/* 主题切换时的文字动画 */
+.theme-switching h1,
+.theme-switching h2,
+.theme-switching h3,
+.theme-switching h4,
+.theme-switching h5,
+.theme-switching h6,
+.theme-switching p,
+.theme-switching span {
+  animation: textColorTransition 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes textColorTransition {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 0.9;
+    transform: translateY(-0.5px);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateY(-0.5px);
+  }
+}
+
 body {
   background-color: var(--background-color);
   color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
+  transition: background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   margin: 0;
   font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 主题切换动画遮罩层 */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(64, 158, 255, 0.05) 0%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+  transition: opacity 0.6s ease;
+}
+
+/* 主题切换时的动画效果 */
+body.theme-switching::after {
+  opacity: 1;
+  animation: themeTransition 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes themeTransition {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  30% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
 }
 
 /* 全局滚动条样式 */
@@ -62,14 +139,95 @@ body {
 }
 
 /* 容器和卡片样式 */
-.el-card, .el-container, .el-main, .el-header, .el-aside, .el-footer {
+.el-card {
   background-color: var(--container-bg-color) !important;
   color: var(--text-color) !important;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 4px 12px var(--box-shadow-color);
   backdrop-filter: blur(10px); /* 毛玻璃效果 */
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 主题切换时卡片的特殊动画 */
+.theme-switching .el-card {
+  animation: cardThemeTransition 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes cardThemeTransition {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(0.98);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.01);
+    opacity: 0.9;
+  }
+  75% {
+    transform: scale(0.99);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.el-container, .el-main, .el-header, .el-aside, .el-footer {
+  background-color: var(--container-bg-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 0 !important; /* 移除布局容器圆角 */
+  box-shadow: 0 4px 12px var(--box-shadow-color);
+  backdrop-filter: blur(10px); /* 毛玻璃效果 */
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 主题切换时布局容器的动画 */
+.theme-switching .el-container,
+.theme-switching .el-main,
+.theme-switching .el-header,
+.theme-switching .el-aside,
+.theme-switching .el-footer {
+  animation: containerThemeTransition 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes containerThemeTransition {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-1px);
+    opacity: 0.98;
+  }
+  60% {
+    transform: translateY(-1px);
+    opacity: 0.98;
+  }
+}
+
+.el-card::before, .el-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.6s;
+}
+
+.el-card:hover::before, .el-container:hover::before {
+  left: 100%;
 }
 
 .el-menu {
@@ -79,19 +237,46 @@ body {
 
 .el-menu-item:hover, .el-sub-menu__title:hover {
   background-color: var(--hover-bg-color) !important;
+  transform: translateX(4px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .el-menu-item.is-active {
   background-color: var(--active-menu-bg) !important;
   color: var(--active-menu-color) !important;
+  transform: translateX(6px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.el-menu-item, .el-sub-menu__title {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .el-button {
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.el-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.el-button:active {
+  transform: translateY(0);
+  transition: all 0.1s;
 }
 
 .el-button--primary {
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+.el-button--primary:hover {
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.4);
 }
 
 /* 科技感背景 */
@@ -106,14 +291,122 @@ body::before {
   background-image: radial-gradient(circle at 25% 25%, rgba(64, 158, 255, 0.1), transparent 30%),
                     radial-gradient(circle at 75% 75%, rgba(112, 79, 229, 0.1), transparent 30%);
   opacity: 0;
-  transition: opacity 0.5s;
+  transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: scale(1.05);
 }
 
 html.dark body::before {
   opacity: 1;
+  transform: scale(1);
+  animation: backgroundPulse 4s ease-in-out infinite;
 }
 
-/* Add cursor pointer to el-dropdown for theme switch */
+@keyframes backgroundPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+/* 主题切换按钮美化 */
 .el-dropdown {
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  padding: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.el-dropdown:hover {
+  background-color: var(--hover-bg-color);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+}
+
+.el-dropdown:active {
+  transform: scale(0.95);
+  transition: transform 0.1s;
+}
+
+/* 主题切换图标动画 */
+.el-dropdown .el-icon {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.el-dropdown:hover .el-icon {
+  transform: rotate(180deg);
+  color: var(--el-color-primary);
+  filter: drop-shadow(0 0 8px rgba(64, 158, 255, 0.4));
+}
+
+/* 主题切换下拉菜单美化 */
+.el-dropdown-menu {
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid var(--border-color) !important;
+  backdrop-filter: blur(20px);
+  animation: dropdownSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.el-dropdown-menu__item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  margin: 4px 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.el-dropdown-menu__item:hover {
+  background-color: var(--el-color-primary-light-9) !important;
+  color: var(--el-color-primary) !important;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.el-dropdown-menu__item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(64, 158, 255, 0.1), transparent);
+  transition: left 0.4s;
+}
+
+.el-dropdown-menu__item:hover::before {
+  left: 100%;
+}
+
+/* 主题切换时的特殊效果 */
+.theme-switching .el-dropdown {
+  animation: themeButtonPulse 0.8s ease-in-out;
+}
+
+@keyframes themeButtonPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(64, 158, 255, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 10px rgba(64, 158, 255, 0);
+  }
 }

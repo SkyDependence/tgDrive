@@ -26,15 +26,17 @@
         <div class="action-item">
           <h3>手动发送保活消息</h3>
           <p>立即发送一条保活消息到Telegram，用于测试机器人连接状态。</p>
-          <el-button 
-            type="primary" 
-            @click="sendKeepAliveMessage"
-            :loading="sendLoading"
-            :icon="Message"
-            size="large"
-          >
-            发送保活消息
-          </el-button>
+          <div class="send-button-container">
+            <el-button 
+              type="primary" 
+              @click="sendKeepAliveMessage"
+              :loading="sendLoading"
+              :icon="Message"
+              size="large"
+            >
+              发送保活消息
+            </el-button>
+          </div>
         </div>
 
         <el-divider direction="horizontal" />
@@ -278,6 +280,13 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.send-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 
 .config-info {
@@ -289,12 +298,36 @@ onMounted(() => {
     padding: 10px;
   }
   
+  .card-header {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .action-item h3 {
+    text-align: center;
+  }
+  
+  .action-item p {
+    text-align: center;
+  }
+  
+  .send-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  
   .task-controls {
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
   
   .task-controls .el-button {
-    width: 100%;
+    flex: 1;
+    min-width: 120px;
+    max-width: 150px;
   }
 }
 </style>

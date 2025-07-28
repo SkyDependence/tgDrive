@@ -45,10 +45,12 @@
         </el-row>
 
         <el-form-item class="form-actions">
-          <el-button type="primary" native-type="submit" :loading="isSubmitting" size="large">
-            {{ isSubmitting ? '提交中...' : '保存并提交' }}
-          </el-button>
-          <el-button @click="resetForm" size="large">重置表单</el-button>
+          <div class="form-button-group">
+            <el-button type="primary" native-type="submit" :loading="isSubmitting" size="large">
+              {{ isSubmitting ? '提交中...' : '保存并提交' }}
+            </el-button>
+            <el-button @click="resetForm" size="large">重置表单</el-button>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -78,12 +80,14 @@
             :value="config.name"
           />
         </el-select>
-        <el-button type="success" @click="loadConfig" :loading="isLoading" :disabled="!selectedConfig" size="large" plain>
-          加载选中配置
-        </el-button>
-        <el-button type="danger" @click="deleteConfig" :loading="isDeleting" :disabled="!selectedConfig" size="large" plain>
-          删除配置
-        </el-button>
+        <div class="config-button-group">
+          <el-button type="success" @click="loadConfig" :loading="isLoading" :disabled="!selectedConfig" size="large" plain>
+            加载选中配置
+          </el-button>
+          <el-button type="danger" @click="deleteConfig" :loading="isDeleting" :disabled="!selectedConfig" size="large" plain>
+            删除配置
+          </el-button>
+        </div>
       </div>
 
       <el-collapse-transition>
@@ -279,14 +283,30 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.form-button-group {
+  display: flex;
+  gap: 8px;
+}
+
 .load-config-wrapper {
   display: flex;
   gap: 10px;
   align-items: center;
 }
 
+.config-button-group {
+  display: flex;
+  gap: 8px;
+}
+
 .config-select {
   flex-grow: 1;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .config-preview {
@@ -324,8 +344,14 @@ onMounted(() => {
     margin-top: 16px;
   }
 
-  .form-actions .el-button {
+  .form-button-group {
+    display: flex;
+    gap: 8px;
     width: 100%;
+  }
+
+  .form-button-group .el-button {
+    flex: 1;
     min-height: 44px; /* 触摸友好的按钮高度 */
   }
 
@@ -339,8 +365,14 @@ onMounted(() => {
     width: 100%;
   }
 
-  .load-config-wrapper .el-button {
+  .config-button-group {
+    display: flex;
+    gap: 8px;
     width: 100%;
+  }
+
+  .config-button-group .el-button {
+    flex: 1;
     min-height: 44px;
   }
 
@@ -367,8 +399,14 @@ onMounted(() => {
     align-items: stretch;
   }
 
-  .form-actions .el-button {
+  .form-button-group {
+    display: flex;
+    gap: 10px;
     width: 100%;
+  }
+
+  .form-button-group .el-button {
+    flex: 1;
   }
 
   .load-config-wrapper {
@@ -381,8 +419,14 @@ onMounted(() => {
     width: 100%;
   }
 
-  .load-config-wrapper .el-button {
+  .config-button-group {
+    display: flex;
+    gap: 10px;
     width: 100%;
+  }
+
+  .config-button-group .el-button {
+    flex: 1;
   }
 }
 

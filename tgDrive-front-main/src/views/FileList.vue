@@ -27,9 +27,11 @@
               />
             </el-select>
             <el-input v-model="searchQuery" placeholder="搜索文件名" clearable style="width: 200px; margin-right: 10px;" @keyup.enter="handleSearch" />
-            <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
-            <el-button type="default" @click="clearSearch" :icon="Refresh">全部</el-button>
-            <el-button v-if="currentRole === 'admin'" type="primary" @click="openUpdateDialog" :icon="Refresh" style="margin-left: 10px;">更新 URL 前缀</el-button>
+            <div class="search-button-group">
+              <el-button type="primary" @click="handleSearch" :icon="Search">搜索</el-button>
+              <el-button type="default" @click="clearSearch" :icon="Refresh">全部</el-button>
+            </div>
+            <el-button v-if="currentRole === 'admin'" type="primary" @click="openUpdateDialog" :icon="Refresh" class="update-url-btn">更新 URL 前缀</el-button>
           </div>
         </div>
       </template>
@@ -155,7 +157,7 @@
           v-model:page-size="pageSize"
           :total="totalItems"
           :page-sizes="[10, 20, 50, 100]"
-          :layout="isMobile ? 'sizes, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
           @size-change="handleSizeChange"
           @current-change="handlePageChange"
           background
@@ -279,11 +281,48 @@ const handleSelectionChange = (selection: FileItem[]) => {
 };
 
 const copyToClipboard = (text: string, message: string) => {
-  navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success(message);
-  }).catch(err => {
-    ElMessage.error('复制失败: ' + err);
-  });
+  // 优先使用现代的 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      ElMessage.success(message);
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopyTextToClipboard(text, message);
+    });
+  } else {
+    // 降级到传统方法
+    fallbackCopyTextToClipboard(text, message);
+  }
+};
+
+// 传统的复制方法作为降级方案
+const fallbackCopyTextToClipboard = (text: string, message: string) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  
+  // 避免滚动到底部
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      ElMessage.success(message);
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    ElMessage.error('复制失败，请手动复制');
+  }
+  
+  document.body.removeChild(textArea);
 };
 
 const batchCopyMarkdown = () => {
@@ -549,6 +588,57 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.search-button-group {
+  display: flex;
+  gap: 8px;
+}
+
+/* 桌面端样式重置 */
+@media (min-width: 768px) {
+  .card-header {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+  }
+
+  .card-header .header-right {
+    width: auto;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .card-header .header-right .el-select {
+    width: 150px !important;
+    margin-right: 10px !important;
+  }
+
+  .card-header .header-right .el-input {
+    width: 200px !important;
+    margin-right: 10px !important;
+  }
+
+  .card-header .header-right .el-button {
+    width: auto;
+    margin-left: 0 !important;
+  }
+
+  .search-button-group {
+    width: auto;
+    margin-right: 10px;
+  }
+
+  .search-button-group .el-button {
+    flex: none;
+    width: auto;
+  }
+
+  .update-url-btn {
+    margin-left: 10px !important;
+  }
+}
+
 /* Mobile List View Styles */
 .mobile-file-list {
   padding: 10px;
@@ -582,6 +672,8 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: var(--el-text-color-primary);
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .mobile-checkbox {
@@ -610,6 +702,8 @@ onBeforeUnmount(() => {
 .mobile-file-item .file-actions {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+  min-width: 200px;
 }
 
 /* Responsive styles for FileList.vue */
@@ -626,10 +720,35 @@ onBeforeUnmount(() => {
 
   .card-header .header-right {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
-  .card-header .el-button {
+  .card-header .header-right .el-select {
+    width: 100% !important;
+    margin-right: 0 !important;
+  }
+
+  .card-header .header-right .el-input {
+    width: 100% !important;
+    margin-right: 0 !important;
+  }
+
+  .card-header .header-right .el-button {
     width: 100%;
+    margin-left: 0 !important;
+  }
+
+  /* 移动端搜索按钮组 */
+  .search-button-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .search-button-group .el-button {
+    flex: 1;
   }
 
   .footer-toolbar.is-mobile {
@@ -663,5 +782,40 @@ onBeforeUnmount(() => {
   :deep(.el-pagination .el-pagination__sizes) {
     margin: 0;
   }
+}
+
+/* Desktop 表格文件名列 */
+.el-table-column[prop="fileName"] {
+  .cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+}
+
+/* 操作按钮区域 */
+.el-table-column[label="操作"] {
+  .el-button-group {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+}
+
+/* 移动端文件名 */
+.file-name-mobile {
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.file-actions .el-button-group {
+  flex-wrap: wrap;
+  row-gap: 8px;
+  padding: 4px 0;
 }
 </style>

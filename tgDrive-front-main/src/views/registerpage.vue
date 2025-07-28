@@ -84,6 +84,20 @@
             </router-link>
           </div>
         </el-form-item>
+        
+        <!-- 协议链接 -->
+        <el-form-item class="agreement-links">
+          <div class="agreement-text">
+            <span class="agreement-prompt">注册即表示您同意我们的</span>
+            <router-link to="/agreement" class="agreement-link">
+              用户协议
+            </router-link>
+            <span class="agreement-separator">和</span>
+            <router-link to="/privacy" class="agreement-link">
+              隐私政策
+            </router-link>
+          </div>
+        </el-form-item>
       </el-form>
     </div>
   </div>
@@ -233,6 +247,17 @@ const handleRegister = async () => {
   color: var(--text-color);
 }
 
+/* 暗色模式下的标题发光效果 */
+@media (prefers-color-scheme: dark) {
+  .register-title {
+    text-shadow: 0 0 10px rgba(64, 158, 255, 0.4), 0 0 20px rgba(64, 158, 255, 0.2);
+  }
+}
+
+.dark .register-title {
+  text-shadow: 0 0 10px rgba(64, 158, 255, 0.4), 0 0 20px rgba(64, 158, 255, 0.2);
+}
+
 .register-subtitle {
   font-size: 14px;
   color: var(--el-text-color-secondary);
@@ -267,6 +292,37 @@ const handleRegister = async () => {
 
 .login-btn {
   text-decoration: none;
+}
+
+/* 协议链接样式 */
+.agreement-links {
+  margin-top: 16px;
+}
+
+.agreement-text {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-placeholder);
+}
+
+.agreement-prompt,
+.agreement-separator {
+  color: var(--el-text-color-placeholder);
+}
+
+.agreement-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  margin: 0 2px;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.agreement-link:hover {
+  color: var(--el-color-primary-light-3);
+  border-bottom-color: var(--el-color-primary-light-3);
+  transform: translateY(-1px);
 }
 
 .login-btn .el-button {

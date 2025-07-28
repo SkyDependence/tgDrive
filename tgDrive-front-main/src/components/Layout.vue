@@ -86,6 +86,28 @@
         </transition>
       </router-view>
     </el-main>
+    
+    <!-- 页脚 -->
+    <el-footer class="footer">
+      <div class="footer-content">
+        <div class="footer-links">
+          <el-button type="text" @click="goToAbout" class="footer-link">
+            关于我们
+          </el-button>
+          <el-divider direction="vertical" />
+          <el-button type="text" @click="goToAgreement" class="footer-link">
+            用户协议
+          </el-button>
+          <el-divider direction="vertical" />
+          <el-button type="text" @click="goToPrivacy" class="footer-link">
+            隐私政策
+          </el-button>
+        </div>
+        <div class="footer-copyright">
+          <span>© 2025 TG-Drive. All rights reserved.</span>
+        </div>
+      </div>
+    </el-footer>
   </el-container>
 </template>
 
@@ -128,23 +150,49 @@ const themeIcon = computed(() => {
 })
 
 const applyTheme = () => {
-  if (theme.value === 'auto') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
-    document.documentElement.classList.toggle('dark', prefersDark.matches)
-  } else {
-    document.documentElement.classList.toggle('dark', theme.value === 'dark')
-  }
+  // 添加主题切换动画类
+  document.body.classList.add('theme-switching')
+  
+  // 延迟应用主题以配合动画
+  setTimeout(() => {
+    if (theme.value === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
+      document.documentElement.classList.toggle('dark', prefersDark.matches)
+    } else {
+      document.documentElement.classList.toggle('dark', theme.value === 'dark')
+    }
+  }, 80)
+  
+  // 移除动画类
+  setTimeout(() => {
+    document.body.classList.remove('theme-switching')
+  }, 600)
 }
 
 const handleThemeCommand = (command: Theme) => {
   theme.value = command
   localStorage.setItem('theme', command)
+  
+  // 添加触觉反馈（如果支持）
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
   applyTheme()
 }
 
 const systemThemeChangeHandler = (e: MediaQueryListEvent) => {
   if (theme.value === 'auto') {
-    document.documentElement.classList.toggle('dark', e.matches)
+    // 系统主题变化时也添加动画
+    document.body.classList.add('theme-switching')
+    
+    setTimeout(() => {
+      document.documentElement.classList.toggle('dark', e.matches)
+    }, 80)
+    
+    setTimeout(() => {
+      document.body.classList.remove('theme-switching')
+    }, 600)
   }
 }
 
@@ -222,6 +270,16 @@ const goToUpload = () => {
 // 导航到修改密码页面
 const goToChangePassword = () => {
   router.push('/user/changePassword')
+}
+
+// 导航到用户协议页面
+const goToAgreement = () => {
+  router.push('/agreement')
+}
+
+// 导航到隐私政策页面（暂时跳转到关于页面）
+const goToPrivacy = () => {
+  router.push('/privacy')
 }
 
 // 处理导航下拉菜单命令
@@ -486,16 +544,27 @@ const handleLogout = () => {
     align-items: center;
   }
 
+  .logo {
+    gap: 8px;
+  }
+
   .logo-icon {
     font-size: 20px;
   }
 
+  .logo-text {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+
   .main-title {
-    font-size: 18px;
+    font-size: 16px;
+    white-space: nowrap;
   }
 
   .sub-title {
-    font-size: 10px;
+    display: none;
   }
 
   .actions {
@@ -526,16 +595,27 @@ const handleLogout = () => {
     gap: 12px;
   }
 
+  .logo {
+    gap: 10px;
+  }
+
   .logo-icon {
     font-size: 24px;
   }
 
+  .logo-text {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
   .main-title {
-    font-size: 20px;
+    font-size: 18px;
+    white-space: nowrap;
   }
 
   .sub-title {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .actions {
@@ -664,6 +744,79 @@ const handleLogout = () => {
   .user-nav-mobile {
     display: block;
   }
+}
+
+/* 页脚样式 */
+.footer {
+  height: auto;
+  padding: 20px 0;
+  background: var(--container-bg-color);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-link {
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+  padding: 4px 8px;
+  transition: all 0.3s ease;
+}
+
+.footer-link:hover {
+  color: var(--el-color-primary);
+  transform: translateY(-1px);
+}
+
+.footer-copyright {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  text-align: center;
+}
+
+/* 页脚响应式设计 */
+@media (max-width: 768px) {
+  .footer {
+    padding: 16px 0;
+  }
+  
+  .footer-content {
+    padding: 0 16px;
+  }
+  
+  .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .footer-link {
+    font-size: 13px;
+  }
+  
+  .footer-copyright {
+    font-size: 11px;
+  }
+}
+
+/* 暗色模式页脚适配 */
+.dark .footer {
+  background: var(--el-bg-color-page);
+  border-top-color: var(--el-border-color);
 }
 
 /* 超小屏幕优化 */

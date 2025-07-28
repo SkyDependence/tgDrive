@@ -328,11 +328,50 @@ const downloadFile = (file: FileItem) => {
 // 分享文件
 const shareFile = (file: FileItem) => {
   const shareUrl = `${window.location.origin}/share/${file.fileId}`
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    ElMessage.success('分享链接已复制到剪贴板')
-  }).catch(() => {
-    ElMessage.error('复制失败，请手动复制链接')
-  })
+  const message = '分享链接已复制到剪贴板';
+  
+  // 优先使用现代的 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      ElMessage.success(message);
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopyTextToClipboard(shareUrl, message);
+    });
+  } else {
+    // 降级到传统方法
+    fallbackCopyTextToClipboard(shareUrl, message);
+  }
+};
+
+// 传统的复制方法作为降级方案
+const fallbackCopyTextToClipboard = (text: string, message: string) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  
+  // 避免滚动到底部
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      ElMessage.success(message);
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    ElMessage.error('复制失败，请手动复制');
+  }
+  
+  document.body.removeChild(textArea);
 }
 
 // 切换公开状态

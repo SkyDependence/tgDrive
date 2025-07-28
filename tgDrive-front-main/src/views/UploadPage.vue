@@ -122,8 +122,10 @@
           </div>
           
           <div v-if="uploadedFiles.length > 0" class="batch-actions">
-            <el-button @click="batchCopyMarkdown" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (MD)</el-button>
-            <el-button @click="batchCopyLinks" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (链接)</el-button>
+            <div class="batch-button-group">
+              <el-button @click="batchCopyMarkdown" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (MD)</el-button>
+              <el-button @click="batchCopyLinks" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (链接)</el-button>
+            </div>
           </div>
           
           <!-- 批量操作按钮移到这里 -->
@@ -259,11 +261,48 @@ const goToFileList = () => {
 };
 
 const copyToClipboard = (text: string, message: string) => {
-  navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success(message);
-  }).catch(err => {
-    ElMessage.error('复制失败: ' + err);
-  });
+  // 优先使用现代的 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      ElMessage.success(message);
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopyTextToClipboard(text, message);
+    });
+  } else {
+    // 降级到传统方法
+    fallbackCopyTextToClipboard(text, message);
+  }
+};
+
+// 传统的复制方法作为降级方案
+const fallbackCopyTextToClipboard = (text: string, message: string) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  
+  // 避免滚动到底部
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      ElMessage.success(message);
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed:', err);
+    ElMessage.error('复制失败，请手动复制');
+  }
+  
+  document.body.removeChild(textArea);
 };
 
 const copyMarkdown = (file: UploadedFile) => {
@@ -528,26 +567,39 @@ html.dark .uploaded-file-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 0; /* 允许收缩 */
 }
 
 .uploaded-file-name {
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px; /* 限制最大宽度 */
 }
 
 .file-actions {
   display: flex;
   gap: 5px;
+  flex-shrink: 0; /* 防止被压缩 */
+  min-width: 120px; /* 确保按钮区域有足够空间 */
 }
 
 .batch-actions {
-  margin-top: 20px;
-  border-top: 1px solid var(--border-color);
-  padding-top: 20px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
-}
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .batch-button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 
 :deep(.el-progress-bar__inner--striped) {
   animation-duration: 2s; /* 减慢流动动画速度，默认为1s */
@@ -625,57 +677,113 @@ html.dark .uploaded-file-item {
 
   .card-header {
     flex-wrap: wrap; /* Allow header items to wrap */
-    justify-content: center; /* Center header items */
-    text-align: center;
+    justify-content: space-between; /* Better alignment */
+    text-align: left;
+    gap: 8px;
   }
 
   .card-header .el-button {
-    margin-top: 5px; /* Add some space if button wraps */
+    margin-top: 0;
+    flex-shrink: 0;
+  }
+
+  .upload-actions {
+    margin-top: 15px;
   }
 
   .upload-actions .el-button {
     width: 100%; /* Make upload button full width */
+    padding: 12px 20px;
+    font-size: 16px;
   }
 
   .file-progress-item {
-    flex-direction: column; /* Stack file name and progress bar */
-    align-items: flex-start; /* Align items to start */
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--el-border-color-light);
   }
 
   .file-name {
-    width: 100%; /* Take full width */
-    max-width: none; /* Remove max-width constraint */
+    width: 100%;
+    max-width: none;
     text-align: left;
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
   }
 
   .el-progress {
-    width: 100%; /* Make progress bar full width */
+    width: 100%;
+    margin: 8px 0;
+  }
+
+  .file-size-info {
+    text-align: left;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .telegram-info {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--el-border-color-lighter);
+  }
+
+  .telegram-progress-text {
+    margin-bottom: 8px;
+    font-size: 13px;
   }
 
   .uploaded-file-item {
-    flex-direction: column; /* Stack file details and buttons */
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 15px;
   }
 
   .file-details {
     width: 100%;
+    justify-content: flex-start;
   }
 
   .uploaded-file-name {
-    font-size: 13px;
-    word-break: break-all;
+    font-size: 14px;
+    max-width: none;
+    flex: 1;
   }
 
   .file-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .file-actions .el-button {
-    padding: 6px;
-    margin: 0 2px;
+    flex: 1;
+    max-width: 80px;
+    padding: 8px;
   }
+
+  .batch-actions {
+     justify-content: center;
+     padding: 15px 0;
+   }
+
+   .batch-button-group {
+     display: flex;
+     flex-direction: row;
+     gap: 10px;
+     width: 100%;
+     max-width: 300px;
+     justify-content: center;
+   }
+
+   .batch-button-group .el-button {
+     flex: 1;
+     padding: 10px 8px;
+     font-size: 13px;
+     white-space: nowrap;
+   }
 }
 </style>

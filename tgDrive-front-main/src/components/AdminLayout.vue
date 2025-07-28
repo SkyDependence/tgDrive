@@ -86,6 +86,14 @@
              <el-icon><Connection /></el-icon>
              <template #title>WebDAV配置</template>
            </el-menu-item>
+           <el-menu-item index="/agreement">
+             <el-icon><Setting /></el-icon>
+             <template #title>用户协议</template>
+           </el-menu-item>
+           <el-menu-item index="/privacy">
+             <el-icon><Setting /></el-icon>
+             <template #title>隐私政策</template>
+           </el-menu-item>
 
         </el-menu>
       </el-aside>
@@ -137,6 +145,14 @@
             <el-icon><Connection /></el-icon>
             <template #title>WebDAV配置</template>
           </el-menu-item>
+          <el-menu-item index="/agreement">
+            <el-icon><Setting /></el-icon>
+            <template #title>用户协议</template>
+          </el-menu-item>
+          <el-menu-item index="/privacy">
+            <el-icon><Setting /></el-icon>
+            <template #title>隐私政策</template>
+          </el-menu-item>
         </el-menu>
       </el-drawer>
       
@@ -178,23 +194,49 @@ const themeIcon = computed(() => {
 })
 
 const applyTheme = () => {
-  if (theme.value === 'auto') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
-    document.documentElement.classList.toggle('dark', prefersDark.matches)
-  } else {
-    document.documentElement.classList.toggle('dark', theme.value === 'dark')
-  }
+  // 添加主题切换动画类
+  document.body.classList.add('theme-switching')
+  
+  // 延迟应用主题以配合动画
+  setTimeout(() => {
+    if (theme.value === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
+      document.documentElement.classList.toggle('dark', prefersDark.matches)
+    } else {
+      document.documentElement.classList.toggle('dark', theme.value === 'dark')
+    }
+  }, 80)
+  
+  // 移除动画类
+  setTimeout(() => {
+    document.body.classList.remove('theme-switching')
+  }, 600)
 }
 
 const handleThemeCommand = (command: Theme) => {
   theme.value = command
   localStorage.setItem('theme', command)
+  
+  // 添加触觉反馈（如果支持）
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50)
+  }
+  
   applyTheme()
 }
 
 const systemThemeChangeHandler = (e: MediaQueryListEvent) => {
   if (theme.value === 'auto') {
-    document.documentElement.classList.toggle('dark', e.matches)
+    // 系统主题变化时也添加动画
+    document.body.classList.add('theme-switching')
+    
+    setTimeout(() => {
+      document.documentElement.classList.toggle('dark', e.matches)
+    }, 80)
+    
+    setTimeout(() => {
+      document.body.classList.remove('theme-switching')
+    }, 600)
   }
 }
 

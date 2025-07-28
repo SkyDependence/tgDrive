@@ -4,7 +4,7 @@
       <div class="login-header">
         <el-icon :size="28" color="var(--el-color-primary)"><Cloudy /></el-icon>
         <h2 class="login-title">欢迎回来</h2>
-        <p class="login-subtitle">请使用访客账户登录</p>
+        <p class="login-subtitle">您可以使用访客账户登录</p>
         <div class="account-info">
           <p><strong>访客账户:</strong> visitor / 111111</p>
         </div>
@@ -67,6 +67,20 @@
               <el-button type="primary" plain size="small">
                 立即注册
               </el-button>
+            </router-link>
+          </div>
+        </el-form-item>
+        
+        <!-- 协议链接 -->
+        <el-form-item class="agreement-links">
+          <div class="agreement-text">
+            <span class="agreement-prompt">登录即表示您同意我们的</span>
+            <router-link to="/agreement" class="agreement-link">
+              用户协议
+            </router-link>
+            <span class="agreement-separator">和</span>
+            <router-link to="/privacy" class="agreement-link">
+              隐私政策
             </router-link>
           </div>
         </el-form-item>
@@ -203,6 +217,18 @@ onMounted(() => {
   color: var(--text-color);
 }
 
+/* 暗色模式下的发光效果 */
+@media (prefers-color-scheme: dark) {
+  .login-title {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 16px rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Element Plus 暗色主题适配 */
+.dark .login-title {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 16px rgba(255, 255, 255, 0.1);
+}
+
 .login-subtitle {
   font-size: 14px;
   color: var(--el-text-color-secondary);
@@ -210,21 +236,101 @@ onMounted(() => {
 }
 
 .account-info {
-  background-color: var(--el-fill-color-light);
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-  border-left: 4px solid var(--el-color-primary);
+  background: var(--el-bg-color-page);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--el-border-color);
+  position: relative;
+}
+
+.account-info::after {
+  content: '🎭';
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 24px;
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.6)) brightness(1.2);
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(5deg); }
+}
+
+.account-info:hover {
+  border-color: var(--el-border-color-hover);
 }
 
 .account-info p {
-  margin: 5px 0;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
+  margin: 0;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.account-info p::before {
+  content: '🔑';
+  font-size: 16px;
 }
 
 .account-info strong {
-  color: var(--el-text-color-primary);
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+/* 暗色模式和Element Plus主题会自动通过CSS变量适配 */
+
+/* 响应式优化 */
+@media (max-width: 575.98px) {
+  .account-info {
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+  }
+  
+  .account-info::after {
+    top: 12px;
+    right: 16px;
+    font-size: 20px;
+  }
+  
+  .account-info p {
+    font-size: 13px;
+    gap: 6px;
+  }
+  
+  .account-info p::before {
+    font-size: 14px;
+  }
+}
+
+/* 高分辨率屏幕优化 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .account-info {
+    border-width: 0.5px;
+  }
+}
+
+/* 减少动画效果的用户偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .account-info {
+    transition: none;
+  }
+  
+  .account-info::before {
+    animation: none;
+  }
+  
+  .account-info:hover {
+    transform: none;
+  }
 }
 
 .login-form .el-form-item {
@@ -262,6 +368,49 @@ onMounted(() => {
 
 .register-btn {
   text-decoration: none;
+}
+
+/* 协议链接样式 */
+.agreement-links {
+  margin-top: 16px;
+}
+
+.agreement-text {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-placeholder);
+}
+
+.agreement-prompt,
+.agreement-separator {
+  color: var(--el-text-color-placeholder);
+}
+
+.agreement-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  margin: 0 2px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid transparent;
+  position: relative;
+}
+
+.agreement-link:hover {
+  color: var(--el-color-primary-light-3);
+  background-color: rgba(64, 158, 255, 0.1);
+  border-bottom-color: var(--el-color-primary-light-3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.agreement-link:active {
+  color: var(--el-color-primary-dark-2);
+  background-color: rgba(64, 158, 255, 0.2);
+  transform: translateY(0px);
+  box-shadow: 0 1px 4px rgba(64, 158, 255, 0.3);
 }
 
 .register-btn .el-button {
