@@ -3,9 +3,11 @@ package com.skydevs.tgdrive.config;
 import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,16 +18,15 @@ import java.util.List;
  */
 @Component
 @Slf4j
-public class AutoConfigLoader implements CommandLineRunner {
+@RequiredArgsConstructor
+public class AutoConfigLoader implements ApplicationListener<ApplicationReadyEvent> {
 
-    @Autowired
-    private ConfigService configService;
-    
-    @Autowired
-    private BotService botService;
+    private final ConfigService configService;
+
+    private final BotService botService;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         try {
             log.info("开始自动加载配置...");
             
@@ -59,7 +60,7 @@ public class AutoConfigLoader implements CommandLineRunner {
             }
             
         } catch (Exception e) {
-            log.warn("自动加载配置失败: {}", e.getMessage());
+            log.warn("自动加载配置失败: {}", e.getMessage(), e);
             log.info("应用将正常启动，请通过管理界面手动加载配置");
         }
     }

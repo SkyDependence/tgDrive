@@ -2,6 +2,7 @@ package com.skydevs.tgdrive.controller;
 
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BackupService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -17,11 +18,11 @@ import java.io.File;
 @RestController
 @RequestMapping("/api/backup")
 @Slf4j
+@RequiredArgsConstructor
 public class BackupController {
 
     private static final String DATABASE_PATH = "db/tgDrive.db"; // SQLite 文件路径
-    @javax.annotation.Resource
-    private BackupService backupService;
+    private final BackupService backupService;
 
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadBackup(){

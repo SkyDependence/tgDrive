@@ -1,10 +1,11 @@
 package com.skydevs.tgdrive.config;
 
 import com.skydevs.tgdrive.service.WebDavConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,13 +14,13 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Slf4j
-public class WebDavConfigInitializer implements ApplicationRunner {
-    
-    @Autowired
-    private WebDavConfigService webDavConfigService;
-    
+@RequiredArgsConstructor
+public class WebDavConfigInitializer implements ApplicationListener<ApplicationReadyEvent> {
+
+    private final WebDavConfigService webDavConfigService;
+
     @Override
-    public void run(ApplicationArguments args) throws Exception {
+    public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         try {
             log.info("开始初始化WebDAV配置...");
             webDavConfigService.initDefaultConfig();

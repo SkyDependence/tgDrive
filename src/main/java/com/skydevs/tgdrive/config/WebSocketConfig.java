@@ -1,18 +1,18 @@
 package com.skydevs.tgdrive.config;
 
+import com.skydevs.tgdrive.websocket.UploadProgressWebSocketHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-import com.skydevs.tgdrive.websocket.UploadProgressWebSocketHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Configuration
 @EnableWebSocket
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    @Autowired
-    private UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
+    private final UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
