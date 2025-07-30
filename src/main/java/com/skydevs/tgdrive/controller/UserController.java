@@ -50,7 +50,7 @@ public class UserController {
     /**
      * 修改密码
      * @param changePasswordRequest 修改密码请求
-     * @return
+     * @return 密码修改成功消息
      */
     @PostMapping("change-password")
     public Result<String> changePassword(@RequestBody ChangePasswordRequest changePasswordRequest) {
@@ -96,7 +96,7 @@ public class UserController {
     /**
      * 管理员修改用户密码
      * @param adminChangePasswordRequest 管理员修改密码请求
-     * @return
+     * @return 密码修改成败消息
      */
     @PostMapping("admin/change-password")
     public Result<String> adminChangePassword(@RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {

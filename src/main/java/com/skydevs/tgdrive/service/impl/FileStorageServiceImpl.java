@@ -2,8 +2,8 @@ package com.skydevs.tgdrive.service.impl;
 
 import cn.hutool.crypto.digest.DigestUtil;
 import com.alibaba.fastjson.JSON;
-import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.pengrad.telegrambot.model.Message;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.entity.BigFileInfo;
@@ -19,7 +19,6 @@ import com.skydevs.tgdrive.utils.UserFriendly;
 import com.skydevs.tgdrive.websocket.UploadProgressWebSocketHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -286,27 +285,21 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     /**
      * 获取文件分页
-     * @param page
-     * @param size
-     * @return
+     * @param page 页码
+     * @param size 每页数量
+     * @return 分页结果
      */
     @Override
     public PageResult getFileList(int page, int size, String keyword, Long userId, String role) {
         PageHelper.startPage(page, size);
-        Page<FileInfo> pageInfo = fileMapper.getFilteredFiles(keyword, userId, role);
-        List<FileInfo> fileInfos = new ArrayList<>();
-        for (FileInfo fileInfo : pageInfo) {
-            FileInfo fileInfo1 = new FileInfo();
-            BeanUtils.copyProperties(fileInfo, fileInfo1);
-            fileInfos.add(fileInfo1);
-        }
+        List<FileInfo> fileInfoList = fileMapper.getFilteredFiles(keyword, userId, role);
+        PageInfo<FileInfo> pageInfo = new PageInfo<>(fileInfoList);
         log.info("文件分页查询");
-        return new PageResult((int) pageInfo.getTotal(), fileInfos);
+        return new PageResult((int) pageInfo.getTotal(), pageInfo.getList());
     }
 
     /**
      * 更新文件url
-     * @return
      */
     @Override
     public void updateUrl(HttpServletRequest request) {

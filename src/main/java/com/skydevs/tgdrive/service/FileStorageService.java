@@ -32,15 +32,14 @@ public interface FileStorageService {
 
     /**
      * 分页查询文件列表
-     * @param page
-     * @param size
-     * @return
+     * @param page 页码
+     * @param size 每页数量
+     * @return 分页结果
      */
     PageResult getFileList(int page, int size, String keyword, Long userId, String role);
 
     /**
      * 更新文件url
-     * @return
      */
     void updateUrl(HttpServletRequest request);
 

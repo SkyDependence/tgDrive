@@ -24,8 +24,6 @@ public class WebDavController {
 
     /**
      * 上传文件
-     * @param request
-     * @param response
      */
     @PutMapping("/**")
     public void handlePut(HttpServletRequest request, HttpServletResponse response) {
@@ -40,8 +38,6 @@ public class WebDavController {
 
     /**
      * 下载文件
-     * @param
-     * @return
      */
     @GetMapping("/**")
     public ResponseEntity<StreamingResponseBody> handleGet(HttpServletRequest request) {
@@ -50,8 +46,6 @@ public class WebDavController {
 
     /**
      * 删除文件
-     * @param request
-     * @param response
      */
     @DeleteMapping("/**")
     public void handleDelete(HttpServletRequest request, HttpServletResponse response) {
@@ -67,7 +61,6 @@ public class WebDavController {
 
     /**
      * 处理探测请求
-     * @param response
      */
     @RequestMapping(value = "/**", method = RequestMethod.OPTIONS)
     public void handleOptions(HttpServletResponse response) {
@@ -79,9 +72,6 @@ public class WebDavController {
 
     /**
      * 处理特殊的webdav方法
-     * @param request
-     * @param response
-     * @throws IOException
      */
     @RequestMapping(value = "/dispatch/**", method = {RequestMethod.POST})
     public void handleWebDav(HttpServletRequest request, HttpServletResponse response) throws IOException {

@@ -15,6 +15,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 
+/**
+ * Description:
+ * 数据库备份功能
+ * @author SkyDev
+ * @date 2025-07-30 16:44:45
+ */
 @RestController
 @RequestMapping("/api/backup")
 @Slf4j
@@ -24,6 +30,13 @@ public class BackupController {
     private static final String DATABASE_PATH = "db/tgDrive.db"; // SQLite 文件路径
     private final BackupService backupService;
 
+    /**
+     * Description:
+     * 下载备份数据库文件
+     * @author SkyDev
+     * @date 2025-07-30 16:43:51
+     * @return 数据库文件
+     */
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadBackup(){
         File file = new File(DATABASE_PATH);
@@ -46,6 +59,14 @@ public class BackupController {
                 .body(resource);
     }
 
+    /**
+     * Description:
+     * 恢复数据库
+     * @author SkyDev
+     * @date 2025-07-30 16:42:50
+     * @param multipartFile 数据库文件
+     * @return 是否成功
+     */
     @PostMapping("/upload")
     public Result<String> uploadBackupDb(@RequestParam MultipartFile multipartFile) {
         try {

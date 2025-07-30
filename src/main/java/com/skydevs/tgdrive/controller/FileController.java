@@ -26,8 +26,8 @@ public class FileController {
     /**
      * 上传文件
      *
-     * @param multipartFile
-     * @return
+     * @param multipartFile 上传文件
+     * @return 文件信息
      */
     @SaCheckLogin
     @PostMapping("/upload")
@@ -44,9 +44,9 @@ public class FileController {
 
     /**
      * 获取文件列表
-     * @param page
-     * @param size
-     * @return
+     * @param page 页码
+     * @param size 每页数量
+     * @return 分页结果
      */
     @GetMapping("/fileList")
     public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String keyword, @RequestParam(required = false) Long userId) {
@@ -70,11 +70,11 @@ public class FileController {
 
     /**
      * 更新文件url
-     * @return
+     * @return 成功消息
      */
     @SaCheckLogin
     @PutMapping("/file-url")
-    public Result updateFileUrl(HttpServletRequest request) {
+    public Result<String> updateFileUrl(HttpServletRequest request) {
         log.info("更新文件url");
         fileStorageService.updateUrl(request);
         return Result.success();
@@ -83,11 +83,11 @@ public class FileController {
     /**
      * 删除文件
      * @param fileId 文件ID
-     * @return
+     * @return 成败消息
      */
     @SaCheckLogin
     @PutMapping("/file/{fileId}/public")
-    public Result updateFilePublic(@PathVariable String fileId, @RequestBody Map<String, Boolean> body) {
+    public Result<String> updateFilePublic(@PathVariable String fileId, @RequestBody Map<String, Boolean> body) {
         boolean isPublic = body.get("isPublic");
         long userId = StpUtil.getLoginIdAsLong();
         String role = StpUtil.getSession().getString("role");
@@ -96,7 +96,7 @@ public class FileController {
     }
     @SaCheckLogin
     @DeleteMapping("/file/{fileId}")
-    public Result deleteFile(@PathVariable String fileId) {
+    public Result<String> deleteFile(@PathVariable String fileId) {
         log.info("删除文件，fileId: {}", fileId);
         try {
             long userId = StpUtil.getLoginIdAsLong();

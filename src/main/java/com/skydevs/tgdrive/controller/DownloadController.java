@@ -20,6 +20,14 @@ public class DownloadController {
 
     private final DownloadService downloadService;
 
+    /**
+     * Description:
+     * 根据文件ID下载文件
+     * @author SkyDev
+     * @date 2025-07-30 16:47:18
+     * @param fileID 文件ID
+     * @return 文件
+     */
     @GetMapping("/{fileID}")
     public CompletableFuture<ResponseEntity<StreamingResponseBody>> downloadFile(@PathVariable String fileID) {
         log.info("接收到下载请求，fileID: " + fileID);

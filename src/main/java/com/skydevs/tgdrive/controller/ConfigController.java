@@ -40,7 +40,7 @@ public class ConfigController {
 
     /**
      * 获取所有配置文件
-     * @return
+     * @return 配置文件列表
      */
     @SaCheckLogin
     @GetMapping("/configs")
@@ -51,8 +51,8 @@ public class ConfigController {
 
     /**
      * 提交配置文件
-     * @param configForm
-     * @return
+     * @param configForm 配置信息
+     * @return 成功消息
      */
     @SaCheckLogin
     @PostMapping()
@@ -62,6 +62,14 @@ public class ConfigController {
         return Result.success("配置保存成功");
     }
 
+    /**
+     * Description:
+     * 删除配置文件
+     * @author SkyDev
+     * @date 2025-07-30 16:46:09
+     * @param name 配置文件名
+     * @return 成功消息
+     */
     @SaCheckLogin
     @DeleteMapping("/{name}")
     public Result<String> deleteConfig(@PathVariable("name") String name) {
@@ -71,10 +79,10 @@ public class ConfigController {
     }
 
     /**
+     * Description:
      * 加载配置
-     *
      * @param filename 配置文件名
-     * @return
+     * @return 成功消息
      */
     @SaCheckLogin
     @GetMapping("/{filename}")
