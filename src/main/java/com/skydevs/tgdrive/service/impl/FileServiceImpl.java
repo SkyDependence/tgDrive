@@ -14,9 +14,9 @@ import com.skydevs.tgdrive.service.TelegramBotService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -29,15 +29,12 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FileServiceImpl implements FileService {
-    @Autowired
-    private FileMapper fileMapper;
-    @Autowired
-    private FileStorageService fileStorageService;
-    @Autowired
-    private TelegramBotService telegramBotService;
-    @Autowired
-    private DownloadService downloadService;
+    private final FileMapper fileMapper;
+    private final FileStorageService fileStorageService;
+    private final TelegramBotService telegramBotService;
+    private final DownloadService downloadService;
 
     /**
      * 获取文件分页

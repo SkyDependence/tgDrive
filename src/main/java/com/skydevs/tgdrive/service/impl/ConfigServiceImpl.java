@@ -4,18 +4,18 @@ import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.NoConfigException;
 import com.skydevs.tgdrive.mapper.ConfigMapper;
 import com.skydevs.tgdrive.service.ConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ConfigServiceImpl implements ConfigService {
 
-    @Autowired
-    ConfigMapper configMapper;
+    private final ConfigMapper configMapper;
 
     /**
      * 根据文件名查询配置

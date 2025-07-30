@@ -1,13 +1,12 @@
 package com.skydevs.tgdrive.controller;
 
-import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.FileService;
 import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -18,11 +17,10 @@ import java.io.InputStream;
 @RestController
 @Slf4j
 @RequestMapping("/webdav")
+@RequiredArgsConstructor
 public class WebDavController {
-    @Autowired
-    private FileService fileService;
-    @Autowired
-    private WebDavService webDacService;
+    private final FileService fileService;
+    private final WebDavService webDacService;
 
     /**
      * 上传文件

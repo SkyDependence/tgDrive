@@ -11,21 +11,20 @@ import com.skydevs.tgdrive.exception.UserAlreadyExistsException;
 import com.skydevs.tgdrive.exception.UserNotFoundException;
 import com.skydevs.tgdrive.mapper.UserMapper;
 import com.skydevs.tgdrive.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    @Autowired
-    private UserMapper userMapper;
-
-
+    private final UserMapper userMapper;
 
     /**
      * 根据用户名返回用户

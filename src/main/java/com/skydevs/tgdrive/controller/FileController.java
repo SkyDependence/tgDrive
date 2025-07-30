@@ -2,17 +2,14 @@ package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
-import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.dto.UploadFile;
-
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.FileService;
-import com.skydevs.tgdrive.service.TelegramBotService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,15 +20,11 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @Slf4j
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class FileController {
 
-    @Autowired
-    private BotService botService;
-    @Autowired
-    private FileService fileService;
-    @Autowired
-    private TelegramBotService telegramBotService;
-
+    private final BotService botService;
+    private final FileService fileService;
 
     /**
      * 上传文件

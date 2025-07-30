@@ -1,25 +1,22 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.skydevs.tgdrive.dto.AdminChangePasswordRequest;
-import com.skydevs.tgdrive.dto.AuthRequest;
-import com.skydevs.tgdrive.dto.ChangePasswordRequest;
-import com.skydevs.tgdrive.dto.RegisterRequest;
-import com.skydevs.tgdrive.dto.UserLogin;
+import com.skydevs.tgdrive.dto.*;
 import com.skydevs.tgdrive.entity.User;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @Slf4j
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class UserController {
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
     /**
      * 用户登入

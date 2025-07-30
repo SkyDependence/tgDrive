@@ -8,18 +8,13 @@ import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.service.FileStorageService;
 import com.skydevs.tgdrive.service.TelegramBotService;
-import com.skydevs.tgdrive.utils.OkHttpClientFactory;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.ConnectionPool;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import okhttp3.*;
 import org.apache.tika.Tika;
-import java.util.concurrent.TimeUnit;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -35,17 +30,16 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class DownloadServiceImpl implements DownloadService {
 
-    @Autowired
-    private FileStorageService fileStorageService;
-    @Autowired
-    private TelegramBotService telegramBotService;
-    @Autowired
-    private FileMapper fileMapper;
+    private final FileStorageService fileStorageService;
+    private final TelegramBotService telegramBotService;
+    private final FileMapper fileMapper;
 
     // 优化的HTTP客户端配置
     private final OkHttpClient okHttpClient = new OkHttpClient.Builder()

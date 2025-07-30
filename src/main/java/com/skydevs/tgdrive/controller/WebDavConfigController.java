@@ -3,8 +3,8 @@ package com.skydevs.tgdrive.controller;
 import com.skydevs.tgdrive.entity.WebDavConfig;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.WebDavConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/webdav-config")
 @Slf4j
+@RequiredArgsConstructor
 public class WebDavConfigController {
     
-    @Autowired
-    private WebDavConfigService webDavConfigService;
+    private final WebDavConfigService webDavConfigService;
     
     /**
      * 获取WebDAV配置

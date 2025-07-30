@@ -2,8 +2,8 @@ package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.service.BotKeepAliveService;
 import com.skydevs.tgdrive.service.BotService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +17,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class BotKeepAliveServiceImpl implements BotKeepAliveService {
     
-    @Autowired
-    private BotService botService;
+    private final BotService botService;
     
     private final AtomicBoolean isTaskRunning = new AtomicBoolean(true);
     private static final String KEEP_ALIVE_CHAT_ID = "me"; // 发送给机器人自己

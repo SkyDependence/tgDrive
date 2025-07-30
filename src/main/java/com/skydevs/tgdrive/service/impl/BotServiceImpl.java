@@ -4,7 +4,8 @@ import com.pengrad.telegrambot.model.File;
 import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.entity.FileInfo;
-import com.skydevs.tgdrive.exception.*;
+import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
+import com.skydevs.tgdrive.exception.GetBotTokenFailedException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
@@ -14,29 +15,26 @@ import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
 import com.skydevs.tgdrive.websocket.UploadProgressWebSocketHandler;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class BotServiceImpl implements BotService {
 
-    @Autowired
-    private ConfigService configService;
-    @Autowired
-    private FileMapper fileMapper;
-    @Autowired
-    private TelegramBotService telegramBotService;
-    @Autowired
-    private FileStorageService fileStorageService;
-    @Autowired
-    private UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
+    private final ConfigService configService;
+    private final FileMapper fileMapper;
+    private final TelegramBotService telegramBotService;
+    private final FileStorageService fileStorageService;
+    private final UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
     
     private String customUrl; // 自定义URL配置
 

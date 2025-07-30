@@ -6,8 +6,8 @@ import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,12 +15,11 @@ import java.util.List;
 @RestController
 @Slf4j
 @RequestMapping("/api/config")
+@RequiredArgsConstructor
 public class ConfigController {
 
-    @Autowired
-    private ConfigService configService;
-    @Autowired
-    private BotService botService;
+    private final ConfigService configService;
+    private final BotService botService;
 
     /**
      * 获取配置文件信息

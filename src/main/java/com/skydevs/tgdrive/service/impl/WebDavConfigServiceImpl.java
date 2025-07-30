@@ -3,8 +3,8 @@ package com.skydevs.tgdrive.service.impl;
 import com.skydevs.tgdrive.entity.WebDavConfig;
 import com.skydevs.tgdrive.mapper.WebDavConfigMapper;
 import com.skydevs.tgdrive.service.WebDavConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 @Transactional
+@RequiredArgsConstructor
 public class WebDavConfigServiceImpl implements WebDavConfigService {
     
-    @Autowired
-    private WebDavConfigMapper webDavConfigMapper;
+    private final WebDavConfigMapper webDavConfigMapper;
     
     @Override
     public WebDavConfig getWebDavConfig() {

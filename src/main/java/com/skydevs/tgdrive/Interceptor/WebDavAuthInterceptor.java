@@ -5,8 +5,8 @@ import com.skydevs.tgdrive.mapper.UserMapper;
 import com.skydevs.tgdrive.service.WebDavConfigService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -16,13 +16,12 @@ import java.util.Base64;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class WebDavAuthInterceptor implements HandlerInterceptor {
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
     
-    @Autowired
-    private WebDavConfigService webDavConfigService;
+    private final WebDavConfigService webDavConfigService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
