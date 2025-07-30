@@ -1,7 +1,6 @@
 package com.skydevs.tgdrive.service;
 
 import com.skydevs.tgdrive.entity.FileInfo;
-import com.skydevs.tgdrive.result.PageResult;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -9,20 +8,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import java.io.InputStream;
 import java.util.List;
 
-public interface FileService {
-    /**
-     * 分页查询文件列表
-     * @param page
-     * @param size
-     * @return
-     */
-    PageResult getFileList(int page, int size, String keyword, Long userId, String role);
-
-    /**
-     * 更新文件url
-     * @return
-     */
-    void updateUrl(HttpServletRequest request);
+public interface WebDavFileService {
 
     /**
      * 上传文件到Telegram
@@ -53,11 +39,4 @@ public interface FileService {
      * @return 文件列表
      */
     List<FileInfo> listFiles(String path);
-
-    /**
-     * 根据文件ID删除文件
-     * @param fileId 文件ID
-     */
-    void deleteFile(String fileId, Long userId, String role);
-    void updateIsPublic(String fileId, boolean isPublic, Long userId, String role);
 }

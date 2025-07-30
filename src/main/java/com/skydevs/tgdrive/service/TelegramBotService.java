@@ -4,7 +4,6 @@ import com.pengrad.telegrambot.model.File;
 import com.pengrad.telegrambot.model.Message;
 
 import java.io.InputStream;
-import java.util.List;
 
 /**
  * Telegram Bot服务接口
@@ -14,23 +13,8 @@ public interface TelegramBotService {
 
     /**
      * 初始化Bot配置
-     * @param botToken Bot Token
-     * @param chatId 聊天ID
-     * @param customUrl 自定义URL
      */
-    void initializeBot(String botToken, String chatId, String customUrl);
-
-    /**
-     * 获取Bot Token
-     * @return Bot Token
-     */
-    String getBotToken();
-
-    /**
-     * 获取Chat ID
-     * @return Chat ID
-     */
-    String getChatId();
+    void initializeBot(String filename);
 
     /**
      * 获取自定义URL
@@ -53,13 +37,6 @@ public interface TelegramBotService {
      * @return 消息对象
      */
     Message sendDocument(InputStream inputStream, String filename);
-
-    /**
-     * 从消息中提取文件ID
-     * @param message Telegram消息
-     * @return 文件ID
-     */
-    String extractFileId(Message message);
 
     /**
      * 根据文件ID获取文件信息

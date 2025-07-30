@@ -4,8 +4,8 @@ import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
-import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +19,7 @@ import java.util.List;
 public class ConfigController {
 
     private final ConfigService configService;
-    private final BotService botService;
+    private final TelegramBotService telegramBotService;
 
     /**
      * 获取配置文件信息
@@ -79,7 +79,7 @@ public class ConfigController {
     @SaCheckLogin
     @GetMapping("/{filename}")
     public Result<String> loadConfig(@PathVariable("filename") String filename) {
-        botService.setBotToken(filename);
+        telegramBotService.initializeBot(filename);
         log.info("加载配置成功");
         return Result.success("配置加载成功");
     }

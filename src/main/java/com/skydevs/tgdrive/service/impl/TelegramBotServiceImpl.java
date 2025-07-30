@@ -9,9 +9,13 @@ import com.pengrad.telegrambot.request.SendDocument;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.GetFileResponse;
 import com.pengrad.telegrambot.response.SendResponse;
+import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.BotNotSetException;
+import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.exception.NoConfigException;
+import com.skydevs.tgdrive.service.ConfigService;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +28,9 @@ import java.io.InputStream;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TelegramBotServiceImpl implements TelegramBotService {
+    private final ConfigService configService;
 
     private String botToken;
     private String chatId;
@@ -32,22 +38,17 @@ public class TelegramBotServiceImpl implements TelegramBotService {
     private TelegramBot bot;
 
     @Override
-    public void initializeBot(String botToken, String chatId, String customUrl) {
-        this.botToken = botToken;
-        this.chatId = chatId;
-        this.customUrl = customUrl;
+    public void initializeBot(String filename) {
+        ConfigForm config = configService.get(filename);
+        if (config == null) {
+            log.error("配置文件不存在");
+            throw new ConfigFileNotFoundException();
+        }
+        this.botToken = config.getToken();
+        this.chatId = config.getTarget();
+        this.customUrl = config.getUrl();
         this.bot = new TelegramBot(botToken);
         log.info("Telegram Bot 初始化成功");
-    }
-
-    @Override
-    public String getBotToken() {
-        return botToken;
-    }
-
-    @Override
-    public String getChatId() {
-        return chatId;
     }
 
     @Override
@@ -104,34 +105,6 @@ public class TelegramBotServiceImpl implements TelegramBotService {
             log.error("读取输入流失败: {}", e.getMessage());
             throw new RuntimeException("读取输入流失败", e);
         }
-    }
-
-    @Override
-    public String extractFileId(Message message) {
-        if (message == null) {
-            return null;
-        }
-
-        // 按优先级检查可能的文件类型
-        if (message.document() != null) {
-            return message.document().fileId();
-        } else if (message.sticker() != null) {
-            return message.sticker().fileId();
-        } else if (message.video() != null) {
-            return message.video().fileId();
-        } else if (message.photo() != null && message.photo().length > 0) {
-            return message.photo()[message.photo().length - 1].fileId(); // 取最后一张（通常是最高分辨率）
-        } else if (message.audio() != null) {
-            return message.audio().fileId();
-        } else if (message.animation() != null) {
-            return message.animation().fileId();
-        } else if (message.voice() != null) {
-            return message.voice().fileId();
-        } else if (message.videoNote() != null) {
-            return message.videoNote().fileId();
-        }
-
-        return null; // 没有找到 fileId
     }
 
     @Override

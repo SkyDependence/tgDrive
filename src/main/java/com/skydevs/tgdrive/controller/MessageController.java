@@ -2,7 +2,7 @@ package com.skydevs.tgdrive.controller;
 
 import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.result.Result;
-import com.skydevs.tgdrive.service.BotService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private final BotService botService;
+    private final TelegramBotService telegramBotService;
 
     /**
      * Description:
@@ -34,7 +34,7 @@ public class MessageController {
     @PostMapping("/send-message")
     public Result<String> sendMessage(@RequestBody Message message) {
         log.info("处理消息发送");
-        if (botService.sendMessage(message.getMessage())) {
+        if (telegramBotService.sendMessage(message.getMessage())) {
             return Result.success("消息发送成功: " + message);
         } else {
             return Result.error("消息发送失败");

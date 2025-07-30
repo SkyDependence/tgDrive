@@ -1,22 +1,17 @@
 package com.skydevs.tgdrive.service.impl;
 
-import com.github.pagehelper.Page;
-import com.github.pagehelper.PageHelper;
 import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.exception.FailedToGetSizeException;
-import com.skydevs.tgdrive.exception.InsufficientPermissionException;
 import com.skydevs.tgdrive.mapper.FileMapper;
-import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.service.DownloadService;
-import com.skydevs.tgdrive.service.FileService;
 import com.skydevs.tgdrive.service.FileStorageService;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -30,41 +25,11 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class FileServiceImpl implements FileService {
+public class WebDavFileServiceImpl implements WebDavFileService {
     private final FileMapper fileMapper;
     private final FileStorageService fileStorageService;
     private final TelegramBotService telegramBotService;
     private final DownloadService downloadService;
-
-    /**
-     * 获取文件分页
-     * @param page
-     * @param size
-     * @return
-     */
-    @Override
-    public PageResult getFileList(int page, int size, String keyword, Long userId, String role) {
-        PageHelper.startPage(page, size);
-        Page<FileInfo> pageInfo = fileMapper.getFilteredFiles(keyword, userId, role);
-        List<FileInfo> fileInfos = new ArrayList<>();
-        for (FileInfo fileInfo : pageInfo) {
-            FileInfo fileInfo1 = new FileInfo();
-            BeanUtils.copyProperties(fileInfo, fileInfo1);
-            fileInfos.add(fileInfo1);
-        }
-        log.info("文件分页查询");
-        return new PageResult((int) pageInfo.getTotal(), fileInfos);
-    }
-
-    /**
-     * 更新文件url
-     * @return
-     */
-    @Override
-    public void updateUrl(HttpServletRequest request) {
-        String prefix = StringUtil.getPrefix(request);
-        fileMapper.updateUrl(prefix);
-    }
 
     @Override
     public String uploadByWebDav(InputStream inputStream, HttpServletRequest request) {
@@ -185,41 +150,5 @@ public class FileServiceImpl implements FileService {
             res.add(file);
         }
         return res;
-    }
-
-    /**
-     * 根据文件ID删除文件
-     * @param fileId 文件ID
-     */
-    @Override
-    public void deleteFile(String fileId, Long userId, String role) {
-        FileInfo file = fileMapper.getFileByFileId(fileId);
-        if (file == null) {
-            throw new RuntimeException("文件不存在");
-        }
-        if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
-            try {
-                fileMapper.deleteFile(fileId);
-                log.info("文件删除成功，fileId: {}", fileId);
-            } catch (Exception e) {
-                log.error("文件删除失败，fileId: {}", fileId, e);
-                throw new RuntimeException("文件删除失败", e);
-            }
-        } else {
-            throw new InsufficientPermissionException("无权限删除此文件");
-        }
-    }
-
-    @Override
-    public void updateIsPublic(String fileId, boolean isPublic, Long userId, String role) {
-        FileInfo file = fileMapper.getFileByFileId(fileId);
-        if (file == null) {
-            throw new RuntimeException("文件不存在");
-        }
-        if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
-            fileMapper.updateIsPublic(fileId, isPublic);
-        } else {
-            throw new InsufficientPermissionException("无权限更新此文件");
-        }
     }
 }

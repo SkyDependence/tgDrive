@@ -5,8 +5,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.result.Result;
-import com.skydevs.tgdrive.service.BotService;
-import com.skydevs.tgdrive.service.FileService;
+import com.skydevs.tgdrive.service.FileStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +22,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class FileController {
 
-    private final BotService botService;
-    private final FileService fileService;
-
+    private final FileStorageService fileStorageService;
     /**
      * 上传文件
      *
@@ -42,15 +39,8 @@ public class FileController {
         
         final long userId = StpUtil.getLoginIdAsLong();
         
-        return CompletableFuture.supplyAsync(() -> {
-            return Result.success(botService.getUploadFile(multipartFile, request, userId));
-        });
+        return CompletableFuture.supplyAsync(() -> Result.success(fileStorageService.getUploadFile(multipartFile, request, userId)));
     }
-
-
-
-
-
 
     /**
      * 获取文件列表
@@ -74,7 +64,7 @@ public class FileController {
             role = "admin_filter"; // 特殊角色标识，用于在mapper中处理
         }
         
-        PageResult pageResult = fileService.getFileList(page, size, keyword, filterUserId, role);
+        PageResult pageResult = fileStorageService.getFileList(page, size, keyword, filterUserId, role);
         return Result.success(pageResult);
     }
 
@@ -86,7 +76,7 @@ public class FileController {
     @PutMapping("/file-url")
     public Result updateFileUrl(HttpServletRequest request) {
         log.info("更新文件url");
-        fileService.updateUrl(request);
+        fileStorageService.updateUrl(request);
         return Result.success();
     }
 
@@ -101,7 +91,7 @@ public class FileController {
         boolean isPublic = body.get("isPublic");
         long userId = StpUtil.getLoginIdAsLong();
         String role = StpUtil.getSession().getString("role");
-        fileService.updateIsPublic(fileId, isPublic, userId, role);
+        fileStorageService.updateIsPublic(fileId, isPublic, userId, role);
         return Result.success("更新成功");
     }
     @SaCheckLogin
@@ -111,7 +101,7 @@ public class FileController {
         try {
             long userId = StpUtil.getLoginIdAsLong();
             String role = StpUtil.getSession().getString("role");
-            fileService.deleteFile(fileId, userId, role);
+            fileStorageService.deleteFile(fileId, userId, role);
             return Result.success("文件删除成功");
         } catch (Exception e) {
             log.error("文件删除失败", e);

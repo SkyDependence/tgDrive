@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.skydevs</groupId>
     <artifactId>tgDrive</artifactId>
-    <version>0.1</version>
+    <version>0.1.0</version>
     <name>tgDrive</name>
     <description>tgDrive</description>
     <url/>

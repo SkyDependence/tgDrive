@@ -1,7 +1,7 @@
 package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.service.BotKeepAliveService;
-import com.skydevs.tgdrive.service.BotService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,10 +20,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class BotKeepAliveServiceImpl implements BotKeepAliveService {
     
-    private final BotService botService;
+    private final TelegramBotService telegramBotService;
     
     private final AtomicBoolean isTaskRunning = new AtomicBoolean(true);
-    private static final String KEEP_ALIVE_CHAT_ID = "me"; // 发送给机器人自己
     
     /**
      * 每天凌晨2点发送保活消息
@@ -57,7 +56,7 @@ public class BotKeepAliveServiceImpl implements BotKeepAliveService {
             log.info("发送保活消息: {}", message);
             
             // 使用现有的BotService发送消息
-            return botService.sendMessage(message);
+            return telegramBotService.sendMessage(message);
             
         } catch (Exception e) {
             log.error("发送保活消息失败", e);

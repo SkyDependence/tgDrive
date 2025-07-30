@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.utils;
 
+import com.pengrad.telegrambot.model.Message;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
@@ -75,6 +76,38 @@ public class StringUtil {
             dirPaths.add(currentPath + "/");
         }
         return dirPaths;
+    }
+
+    /**
+     * 从消息中提取文件ID
+     * @param message Telegram消息
+     * @return 文件ID
+     */
+    public static String extractFileId(Message message) {
+        if (message == null) {
+            return null;
+        }
+
+        // 按优先级检查可能的文件类型
+        if (message.document() != null) {
+            return message.document().fileId();
+        } else if (message.sticker() != null) {
+            return message.sticker().fileId();
+        } else if (message.video() != null) {
+            return message.video().fileId();
+        } else if (message.photo() != null && message.photo().length > 0) {
+            return message.photo()[message.photo().length - 1].fileId(); // 取最后一张（通常是最高分辨率）
+        } else if (message.audio() != null) {
+            return message.audio().fileId();
+        } else if (message.animation() != null) {
+            return message.animation().fileId();
+        } else if (message.voice() != null) {
+            return message.voice().fileId();
+        } else if (message.videoNote() != null) {
+            return message.videoNote().fileId();
+        }
+
+        return null; // 没有找到 fileId
     }
 
 }

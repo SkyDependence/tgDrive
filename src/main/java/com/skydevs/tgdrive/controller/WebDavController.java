@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
-import com.skydevs.tgdrive.service.FileService;
+import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +19,7 @@ import java.io.InputStream;
 @RequestMapping("/webdav")
 @RequiredArgsConstructor
 public class WebDavController {
-    private final FileService fileService;
+    private final WebDavFileService webDavFileService;
     private final WebDavService webDacService;
 
     /**
@@ -30,7 +30,7 @@ public class WebDavController {
     @PutMapping("/**")
     public void handlePut(HttpServletRequest request, HttpServletResponse response) {
         try (InputStream inputStream = request.getInputStream()) {
-            fileService.uploadByWebDav(inputStream, request);
+            webDavFileService.uploadByWebDav(inputStream, request);
             response.setStatus(HttpServletResponse.SC_CREATED); // 201 Created
         } catch (Exception e) {
             log.error("文件上传失败: {}", e.getMessage(), e);
@@ -45,7 +45,7 @@ public class WebDavController {
      */
     @GetMapping("/**")
     public ResponseEntity<StreamingResponseBody> handleGet(HttpServletRequest request) {
-        return fileService.downloadByWebDav(request.getRequestURI().substring("/webdav".length()));
+        return webDavFileService.downloadByWebDav(request.getRequestURI().substring("/webdav".length()));
     }
 
     /**
@@ -57,7 +57,7 @@ public class WebDavController {
     public void handleDelete(HttpServletRequest request, HttpServletResponse response) {
         try {
             String path = StringUtil.getPath(request.getRequestURI());
-            fileService.deleteByWebDav(path);
+            webDavFileService.deleteByWebDav(path);
             response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content
         } catch (Exception e) {
             log.error("文件删除失败: {}", e.getMessage(), e);

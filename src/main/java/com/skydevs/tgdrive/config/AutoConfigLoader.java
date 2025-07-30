@@ -1,8 +1,8 @@
 package com.skydevs.tgdrive.config;
 
 import com.skydevs.tgdrive.dto.ConfigForm;
-import com.skydevs.tgdrive.service.BotService;
 import com.skydevs.tgdrive.service.ConfigService;
+import com.skydevs.tgdrive.service.TelegramBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -23,7 +23,7 @@ public class AutoConfigLoader implements ApplicationListener<ApplicationReadyEve
 
     private final ConfigService configService;
 
-    private final BotService botService;
+    private final TelegramBotService telegramBotService;
 
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
@@ -47,7 +47,7 @@ public class AutoConfigLoader implements ApplicationListener<ApplicationReadyEve
                 }
                 
                 // 自动加载选中的配置
-                botService.setBotToken(selectedConfig.getName());
+                telegramBotService.initializeBot(selectedConfig.getName());
                 
                 log.info("自动加载配置成功: {} (共找到{}个配置)", selectedConfig.getName(), configForms.size());
                 

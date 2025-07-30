@@ -2,7 +2,7 @@ package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.mapper.FileMapper;
-import com.skydevs.tgdrive.service.FileService;
+import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +27,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebDavServiceImpl implements WebDavService {
 
-    private final FileService fileService;
+    private final WebDavFileService webDavFileService;
     private final FileMapper fileMapper;
 
     @Override
@@ -238,7 +238,7 @@ public class WebDavServiceImpl implements WebDavService {
                 path = "/";
             }
 
-            List<FileInfo> files = fileService.listFiles(path);
+            List<FileInfo> files = webDavFileService.listFiles(path);
 
         StringBuilder xmlBuilder = new StringBuilder();
         xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
