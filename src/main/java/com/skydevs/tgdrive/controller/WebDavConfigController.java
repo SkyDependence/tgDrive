@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.entity.WebDavConfig;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.WebDavConfigService;
@@ -21,6 +22,7 @@ public class WebDavConfigController {
     /**
      * 获取WebDAV配置
      */
+    @SaCheckRole("admin")
     @GetMapping
     public Result<WebDavConfig> getWebDavConfig() {
         try {
@@ -35,6 +37,7 @@ public class WebDavConfigController {
     /**
      * 更新WebDAV配置
      */
+    @SaCheckRole("admin")
     @PutMapping
     public Result<Void> updateWebDavConfig(@RequestBody WebDavConfig config) {
         try {
@@ -53,6 +56,7 @@ public class WebDavConfigController {
     /**
      * 获取WebDAV状态
      */
+    @SaCheckRole("admin")
     @GetMapping("/status")
     public Result<Boolean> getWebDavStatus() {
         try {
@@ -67,6 +71,7 @@ public class WebDavConfigController {
     /**
      * 重置为默认配置
      */
+    @SaCheckRole("admin")
     @PostMapping("/reset")
     public Result<Void> resetToDefault() {
         try {
