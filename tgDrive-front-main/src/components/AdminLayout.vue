@@ -30,10 +30,10 @@
           </template>
         </el-dropdown>
         <el-dropdown @command="handleUserCommand">
-          <el-avatar 
-            class="user-avatar" 
-            :size="32"
-            src="/public/favicon.ico"
+          <el-avatar
+              class="user-avatar"
+              :size="32"
+              src="/public/favicon.ico"
           />
           <template #dropdown>
             <el-dropdown-menu>
@@ -43,16 +43,16 @@
         </el-dropdown>
       </div>
     </el-header>
-    
+
     <el-container class="main-container">
       <!-- Desktop Sidebar -->
       <el-aside v-if="!isMobile" :width="isCollapsed ? '64px' : '220px'" class="sidebar">
         <el-menu
-          :default-active="activeMenu"
-          class="sidebar-menu"
-          @select="handleSelect"
-          :collapse="isCollapsed"
-          :collapse-transition="false"
+            :default-active="activeMenu"
+            class="sidebar-menu"
+            @select="handleSelect"
+            :collapse="isCollapsed"
+            :collapse-transition="false"
         >
           <el-menu-item index="/home">
             <el-icon><HomeFilled /></el-icon>
@@ -83,35 +83,35 @@
             <template #title>机器人保活</template>
           </el-menu-item>
           <el-menu-item index="/webdav-config">
-             <el-icon><Connection /></el-icon>
-             <template #title>WebDAV配置</template>
-           </el-menu-item>
-           <el-menu-item index="/agreement">
-             <el-icon><Setting /></el-icon>
-             <template #title>用户协议</template>
-           </el-menu-item>
-           <el-menu-item index="/privacy">
-             <el-icon><Setting /></el-icon>
-             <template #title>隐私政策</template>
-           </el-menu-item>
+            <el-icon><Connection /></el-icon>
+            <template #title>WebDAV配置</template>
+          </el-menu-item>
+          <el-menu-item index="/agreement">
+            <el-icon><Setting /></el-icon>
+            <template #title>用户协议</template>
+          </el-menu-item>
+          <el-menu-item index="/privacy">
+            <el-icon><Setting /></el-icon>
+            <template #title>隐私政策</template>
+          </el-menu-item>
 
         </el-menu>
       </el-aside>
 
       <!-- Mobile Sidebar Drawer -->
       <el-drawer
-        v-if="isMobile"
-        v-model="isMobileSidebarOpen"
-        direction="ltr"
-        :with-header="false"
-        size="220px"
+          v-if="isMobile"
+          v-model="isMobileSidebarOpen"
+          direction="ltr"
+          :with-header="false"
+          size="220px"
       >
         <el-menu
-          :default-active="activeMenu"
-          class="sidebar-menu"
-          @select="handleSelectAndCloseDrawer"
-          :collapse="false"
-          :collapse-transition="false"
+            :default-active="activeMenu"
+            class="sidebar-menu"
+            @select="handleSelectAndCloseDrawer"
+            :collapse="false"
+            :collapse-transition="false"
         >
           <el-menu-item index="/home">
             <el-icon><HomeFilled /></el-icon>
@@ -155,7 +155,7 @@
           </el-menu-item>
         </el-menu>
       </el-drawer>
-      
+
       <el-main class="main-content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -170,7 +170,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { 
+import {
   HomeFilled, Folder, Top, EditPen, Sunny, Moon, Expand, Fold, Download, Monitor, SwitchButton, Service, Connection, Setting, User
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -196,7 +196,7 @@ const themeIcon = computed(() => {
 const applyTheme = () => {
   // 添加主题切换动画类
   document.body.classList.add('theme-switching')
-  
+
   // 延迟应用主题以配合动画
   setTimeout(() => {
     if (theme.value === 'auto') {
@@ -206,7 +206,7 @@ const applyTheme = () => {
       document.documentElement.classList.toggle('dark', theme.value === 'dark')
     }
   }, 80)
-  
+
   // 移除动画类
   setTimeout(() => {
     document.body.classList.remove('theme-switching')
@@ -216,12 +216,12 @@ const applyTheme = () => {
 const handleThemeCommand = (command: Theme) => {
   theme.value = command
   localStorage.setItem('theme', command)
-  
+
   // 添加触觉反馈（如果支持）
   if ('vibrate' in navigator) {
     navigator.vibrate(50)
   }
-  
+
   applyTheme()
 }
 
@@ -229,11 +229,11 @@ const systemThemeChangeHandler = (e: MediaQueryListEvent) => {
   if (theme.value === 'auto') {
     // 系统主题变化时也添加动画
     document.body.classList.add('theme-switching')
-    
+
     setTimeout(() => {
       document.documentElement.classList.toggle('dark', e.matches)
     }, 80)
-    
+
     setTimeout(() => {
       document.body.classList.remove('theme-switching')
     }, 600)
@@ -252,20 +252,6 @@ const checkMobile = () => {
   }
 }
 
-// --- Background Settings ---
-const applyBackgroundSettings = (settings: any) => {
-  // 移除所有背景设置，使用默认白色背景
-  const body = document.body
-  body.style.backgroundImage = ''
-  body.style.backgroundColor = '#ffffff'
-  
-  // 移除任何现有的遮罩层
-  const overlay = document.querySelector('.background-overlay')
-  if (overlay) {
-    overlay.remove()
-  }
-}
-
 // --- Component Lifecycle ---
 onMounted(() => {
   // Initial check for mobile
@@ -277,15 +263,12 @@ onMounted(() => {
     const savedSidebarState = localStorage.getItem('sidebarState')
     isCollapsed.value = savedSidebarState === 'collapsed'
   }
-  
+
   // Restore theme
   const savedTheme = localStorage.getItem('theme') as Theme | null
   theme.value = savedTheme || 'auto'
   applyTheme()
-  
-  // 移除背景设置加载，使用默认白色背景
-  applyBackgroundSettings({})
-  
+
   // Add listener for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', systemThemeChangeHandler)
 })
