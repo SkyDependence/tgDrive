@@ -7,7 +7,9 @@ import com.skydevs.tgdrive.exception.BaseException;
 import com.skydevs.tgdrive.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.connector.ClientAbortException;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.io.IOException;
@@ -22,7 +24,7 @@ public class GlobalExceptionHandler {
      * @return 返回异常信息
      */
     @ExceptionHandler
-    public Result exceptionHandler(BaseException ex) {
+    public Result<String> exceptionHandler(BaseException ex) {
         log.error("异常信息：{}", ex.getMessage());
         return Result.error(ex.getMessage());
     }
@@ -67,6 +69,7 @@ public class GlobalExceptionHandler {
     }
 
     // 拦截：未登录异常
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler(NotLoginException.class)
     public Result<String> handlerException(NotLoginException e) {
         log.warn("访问被拒绝 -> 原因: {}", e.getMessage());
