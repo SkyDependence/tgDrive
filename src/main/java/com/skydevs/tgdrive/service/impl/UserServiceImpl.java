@@ -205,4 +205,9 @@ public class UserServiceImpl implements UserService {
         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         userMapper.updateLastLoginTime(userId, currentTime);
     }
+
+    @Override
+    public User getById(long userId) {
+        return userMapper.getUserById(userId);
+    }
 }

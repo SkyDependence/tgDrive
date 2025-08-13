@@ -1,5 +1,8 @@
 package com.skydevs.tgdrive.handler;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
+import cn.dev33.satoken.exception.NotRoleException;
 import com.skydevs.tgdrive.exception.BaseException;
 import com.skydevs.tgdrive.result.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,27 @@ public class GlobalExceptionHandler {
             // 处理其他 IOException
             log.error("发生了 IOException", e);
         }
+    }
+
+    // 拦截：无此角色异常
+    @ExceptionHandler(NotRoleException.class)
+    public Result<String> handlerException(NotRoleException e) {
+        log.warn("访问被拒绝 -> 缺少角色: {}", e.getRole());
+        return Result.error("非admin，权限不足");
+    }
+
+    // 拦截：无此权限异常
+    @ExceptionHandler(NotPermissionException.class)
+    public Result<String> handlerException(NotPermissionException e) {
+        log.warn("访问被拒绝 -> 缺少权限: {}", e.getPermission());
+        return Result.error("无此权限，禁止访问");
+    }
+
+    // 拦截：未登录异常
+    @ExceptionHandler(NotLoginException.class)
+    public Result<String> handlerException(NotLoginException e) {
+        log.warn("访问被拒绝 -> 原因: {}", e.getMessage());
+        return Result.error("请先登录后再访问");
     }
 }
 

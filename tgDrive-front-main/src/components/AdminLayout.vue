@@ -396,12 +396,7 @@ const handleSelectAndCloseDrawer = (index: string) => {
 }
 
 /* Responsive styles */
-/* Hide desktop elements on extra small screens (xs) */
-.hidden-xs-only {
-  display: none !important;
-}
-
-/* Show mobile elements on extra small screens (xs) and hide on small (sm) and up */
+/* Hide mobile elements on desktop */
 .hidden-sm-and-up {
   display: none !important;
 }

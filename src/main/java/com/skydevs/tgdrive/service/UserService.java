@@ -73,4 +73,6 @@ public interface UserService {
      * @param userId 用户ID
      */
     void updateLastLoginTime(Long userId);
+
+    User getById(long userId);
 }

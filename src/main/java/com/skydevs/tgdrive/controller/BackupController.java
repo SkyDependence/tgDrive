@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BackupService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class BackupController {
      * @date 2025-07-30 16:43:51
      * @return 数据库文件
      */
+    @SaCheckRole("admin")
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadBackup(){
         File file = new File(DATABASE_PATH);
@@ -67,6 +69,7 @@ public class BackupController {
      * @param multipartFile 数据库文件
      * @return 是否成功
      */
+    @SaCheckRole("admin")
     @PostMapping("/upload")
     public Result<String> uploadBackupDb(@RequestParam MultipartFile multipartFile) {
         try {

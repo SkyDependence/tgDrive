@@ -1,6 +1,7 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.result.PageResult;
@@ -72,7 +73,7 @@ public class FileController {
      * 更新文件url
      * @return 成功消息
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @PutMapping("/file-url")
     public Result<String> updateFileUrl(HttpServletRequest request) {
         log.info("更新文件url");

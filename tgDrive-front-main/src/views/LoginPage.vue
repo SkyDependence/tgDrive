@@ -114,7 +114,7 @@ const rules: FormRules = {
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少为6个字符', trigger: 'blur' }
+    { min: 5, message: '密码长度至少为5个字符', trigger: 'blur' }
   ]
 }
 

@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
-import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
@@ -26,7 +26,7 @@ public class ConfigController {
      * @param name 配置文件名
      * @return ConfigForm
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @GetMapping()
     public Result<ConfigForm> getConfig(@RequestParam String name) {
         ConfigForm config = configService.get(name);
@@ -42,7 +42,7 @@ public class ConfigController {
      * 获取所有配置文件
      * @return 配置文件列表
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @GetMapping("/configs")
     public Result<List<ConfigForm>> getConfigs() {
         List<ConfigForm> configForms = configService.getForms();
@@ -54,7 +54,7 @@ public class ConfigController {
      * @param configForm 配置信息
      * @return 成功消息
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @PostMapping()
     public Result<String> submitConfig(@RequestBody ConfigForm configForm) {
         configService.save(configForm);
@@ -70,7 +70,7 @@ public class ConfigController {
      * @param name 配置文件名
      * @return 成功消息
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @DeleteMapping("/{name}")
     public Result<String> deleteConfig(@PathVariable("name") String name) {
         configService.delete(name);
@@ -84,7 +84,7 @@ public class ConfigController {
      * @param filename 配置文件名
      * @return 成功消息
      */
-    @SaCheckLogin
+    @SaCheckRole("admin")
     @GetMapping("/{filename}")
     public Result<String> loadConfig(@PathVariable("filename") String filename) {
         telegramBotService.initializeBot(filename);

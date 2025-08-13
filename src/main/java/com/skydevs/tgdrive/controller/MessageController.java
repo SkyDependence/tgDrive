@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.TelegramBotService;
@@ -31,6 +32,7 @@ public class MessageController {
      * @author SkyDev
      * @date 2025-07-11 17:51:27
      */
+    @SaCheckRole("admin")
     @PostMapping("/send-message")
     public Result<String> sendMessage(@RequestBody Message message) {
         log.info("处理消息发送");
