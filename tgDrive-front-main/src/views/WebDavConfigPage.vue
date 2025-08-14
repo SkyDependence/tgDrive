@@ -38,7 +38,7 @@
             inactive-text="不需要"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">是否需要用户名密码认证</div>
+          <div class="form-tip">是否需要用户名密码认证（正在施工中...）</div>
         </el-form-item>
 
         <!-- 权限设置 -->
@@ -72,6 +72,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
+          <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许删除文件" prop="allowDelete">
@@ -81,6 +82,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
+          <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许移动文件" prop="allowMove">
@@ -90,6 +92,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
+          <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许复制文件" prop="allowCopy">
@@ -99,6 +102,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
+          <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="配置描述" prop="description">
