@@ -22,12 +22,7 @@ public class WebDavConfig {
      * WebDAV是否启用
      */
     private Boolean enabled;
-    
-    /**
-     * WebDAV访问路径前缀
-     */
-    private String pathPrefix;
-    
+
     /**
      * 是否需要认证
      */
@@ -37,12 +32,7 @@ public class WebDavConfig {
      * 允许的用户角色（admin/visitor/all）
      */
     private String allowedRoles;
-    
-    /**
-     * 最大上传文件大小（MB）
-     */
-    private Integer maxUploadSize;
-    
+
     /**
      * 是否允许创建目录
      */

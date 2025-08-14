@@ -58,10 +58,8 @@ public class WebDavConfigServiceImpl implements WebDavConfigService {
             WebDavConfig defaultConfig = WebDavConfig.builder()
                     .id(1L)
                     .enabled(true)
-                    .pathPrefix("/webdav")
                     .requireAuth(true)
                     .allowedRoles("admin")
-                    .maxUploadSize(100) // 100MB
                     .allowMkdir(true)
                     .allowDelete(true)
                     .allowMove(true)

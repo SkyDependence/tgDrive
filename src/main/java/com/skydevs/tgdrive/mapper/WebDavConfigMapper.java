@@ -18,9 +18,9 @@ public interface WebDavConfigMapper {
     /**
      * 更新WebDAV配置
      */
-    @Update("UPDATE webdav_config SET enabled = #{enabled}, path_prefix = #{pathPrefix}, " +
+    @Update("UPDATE webdav_config SET enabled = #{enabled}, " +
             "require_auth = #{requireAuth}, allowed_roles = #{allowedRoles}, " +
-            "max_upload_size = #{maxUploadSize}, allow_mkdir = #{allowMkdir}, " +
+            "allow_mkdir = #{allowMkdir}, " +
             "allow_delete = #{allowDelete}, allow_move = #{allowMove}, " +
             "allow_copy = #{allowCopy}, description = #{description}, " +
             "update_time = #{updateTime} WHERE id = 1")
@@ -29,11 +29,11 @@ public interface WebDavConfigMapper {
     /**
      * 插入默认WebDAV配置
      */
-    @Insert("INSERT INTO webdav_config (id, enabled, path_prefix, require_auth, " +
-            "allowed_roles, max_upload_size, allow_mkdir, allow_delete, allow_move, " +
+    @Insert("INSERT INTO webdav_config (id, enabled, require_auth, " +
+            "allowed_roles, allow_mkdir, allow_delete, allow_move, " +
             "allow_copy, description, create_time, update_time) VALUES " +
-            "(1, #{enabled}, #{pathPrefix}, #{requireAuth}, #{allowedRoles}, " +
-            "#{maxUploadSize}, #{allowMkdir}, #{allowDelete}, #{allowMove}, " +
+            "(1, #{enabled}, #{requireAuth}, #{allowedRoles}, " +
+            "#{allowMkdir}, #{allowDelete}, #{allowMove}, " +
             "#{allowCopy}, #{description}, #{createTime}, #{updateTime})")
     int insertWebDavConfig(WebDavConfig config);
     

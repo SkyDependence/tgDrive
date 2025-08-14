@@ -20,7 +20,7 @@ import java.io.InputStream;
 @RequiredArgsConstructor
 public class WebDavController {
     private final WebDavFileService webDavFileService;
-    private final WebDavService webDacService;
+    private final WebDavService webDavService;
 
     /**
      * 上传文件
@@ -75,7 +75,7 @@ public class WebDavController {
      */
     @RequestMapping(value = "/dispatch/**", method = {RequestMethod.POST})
     public void handleWebDav(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        webDacService.switchMethod(request, response);
+        webDavService.switchMethod(request, response);
     }
 
 
