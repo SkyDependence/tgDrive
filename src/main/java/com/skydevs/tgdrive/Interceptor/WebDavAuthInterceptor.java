@@ -7,8 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.DigestUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.nio.charset.StandardCharsets;
@@ -22,6 +22,8 @@ public class WebDavAuthInterceptor implements HandlerInterceptor {
     private final UserMapper userMapper;
     
     private final WebDavConfigService webDavConfigService;
+
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -57,10 +59,9 @@ public class WebDavAuthInterceptor implements HandlerInterceptor {
             
             String username = values[0];
             String password = values[1];
-            password = DigestUtils.md5DigestAsHex(password.getBytes());
 
             User user = userMapper.getUserByUsername(username);
-            if (user == null || !user.getPassword().equals(password)) {
+            if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
                 log.info("WebDAV用户名或密码错误: {}", username);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setHeader("WWW-Authenticate", "Basic realm=\"WebDAV\"");
@@ -85,6 +86,4 @@ public class WebDavAuthInterceptor implements HandlerInterceptor {
             return false;
         }
     }
-
-
 }
