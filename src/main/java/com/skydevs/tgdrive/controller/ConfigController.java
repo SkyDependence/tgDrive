@@ -2,19 +2,15 @@ package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.dto.ConfigForm;
-import com.skydevs.tgdrive.entity.Setting;
 import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.ConfigService;
-import com.skydevs.tgdrive.service.SettingService;
 import com.skydevs.tgdrive.service.TelegramBotService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @Slf4j
@@ -24,10 +20,12 @@ public class ConfigController {
 
     private final ConfigService configService;
     private final TelegramBotService telegramBotService;
-    private final SettingService settingService;
 
     /**
+     * Description:
      * 获取配置文件信息
+     * @author SkyDev
+     * @date 2025-08-15 14:21:54
      * @param name 配置文件名
      * @return ConfigForm
      */
@@ -44,7 +42,10 @@ public class ConfigController {
     }
 
     /**
+     * Description:
      * 获取所有配置文件
+     * @author SkyDev
+     * @date 2025-08-15 14:22:02
      * @return 配置文件列表
      */
     @SaCheckRole("admin")
@@ -55,7 +56,10 @@ public class ConfigController {
     }
 
     /**
+     * Description:
      * 提交配置文件
+     * @author SkyDev
+     * @date 2025-08-15 14:22:09
      * @param configForm 配置信息
      * @return 成功消息
      */
@@ -86,6 +90,8 @@ public class ConfigController {
     /**
      * Description:
      * 加载配置
+     * @author SkyDev
+     * @date 2025-08-15 14:22:26
      * @param filename 配置文件名
      * @return 成功消息
      */
@@ -95,40 +101,5 @@ public class ConfigController {
         telegramBotService.initializeBot(filename);
         log.info("加载配置成功");
         return Result.success("配置加载成功");
-    }
-
-    /**
-     * 获取注册状态
-     * @return 注册状态
-     */
-    @GetMapping("/registration-status")
-    public Result<Map<String, Boolean>> getRegistrationStatus() {
-        String allowRegistration = settingService.getSetting("allow_registration");
-        boolean isAllowed = "true".equalsIgnoreCase(allowRegistration);
-        return Result.success(Map.of("isRegistrationAllowed", isAllowed));
-    }
-
-    /**
-     * 获取所有设置
-     * @return 设置列表
-     */
-    @SaCheckRole("admin")
-    @GetMapping("/settings")
-    public Result<List<Setting>> getAllSettings() {
-        List<Setting> settings = settingService.getAllSettings();
-        return Result.success(settings);
-    }
-
-    /**
-     * 更新设置
-     * @param setting 设置信息
-     * @return 成功消息
-     */
-    @SaCheckRole("admin")
-    @PostMapping("/settings")
-    public Result<String> updateSetting(@Valid @RequestBody Setting setting) {
-        settingService.updateSetting(setting);
-        log.info("设置更新成功: {} = {}", setting.getKey(), setting.getValue());
-        return Result.success("设置更新成功");
     }
 }

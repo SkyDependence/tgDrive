@@ -71,6 +71,7 @@ public class BackupController {
      */
     @SaCheckRole("admin")
     @PostMapping("/upload")
+    //TODO: 参数校验
     public Result<String> uploadBackupDb(@RequestParam MultipartFile multipartFile) {
         try {
             backupService.loadBackupDb(multipartFile);
@@ -80,5 +81,5 @@ public class BackupController {
             log.error("恢复数据库失败");
             return Result.error("恢复数据库失败");
         }
-   }
+    }
 }

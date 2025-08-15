@@ -72,9 +72,9 @@ public class UserController {
     @PostMapping("/register")
     public Result<UserLogin> register(@RequestBody RegisterRequest registerRequest) {
         // 检查是否允许注册
-        String allowRegistration = settingService.getSetting("allow_registration");
-        if (!"true".equalsIgnoreCase(allowRegistration)) {
-            return Result.error("管理员已关闭注册功能");
+        // Check if registration is allowed
+        if (!settingService.isRegistrationAllowed()) {
+            return Result.error("注册功能已关闭");
         }
 
         try {

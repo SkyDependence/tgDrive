@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.service.impl;
 
+import com.skydevs.tgdrive.Constants.SettingConstant;
 import com.skydevs.tgdrive.entity.Setting;
 import com.skydevs.tgdrive.exception.SettingNotFoundException;
 import com.skydevs.tgdrive.mapper.SettingMapper;
@@ -35,4 +36,11 @@ public class SettingServiceImpl implements SettingService {
     public List<Setting> getAllSettings() {
         return settingMapper.findAll();
     }
+
+    @Override
+    public boolean isRegistrationAllowed() {
+        String allowRegistration = this.getSetting(SettingConstant.ALLOW_REGISTRATION);
+        return "true".equals(allowRegistration);
+    }
 }
+

@@ -32,4 +32,11 @@ public interface SettingService {
      * @return settings
      */
     List<Setting> getAllSettings();
+
+    /**
+     * Checks if user registration is currently allowed.
+     *
+     * @return true if registration is allowed, false otherwise.
+     */
+    boolean isRegistrationAllowed();
 }
