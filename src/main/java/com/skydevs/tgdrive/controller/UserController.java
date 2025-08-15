@@ -5,6 +5,7 @@ import com.skydevs.tgdrive.dto.*;
 import com.skydevs.tgdrive.entity.User;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.UserService;
+import com.skydevs.tgdrive.service.SettingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final SettingService settingService;
 
     /**
      * 用户登入
@@ -69,6 +71,12 @@ public class UserController {
      */
     @PostMapping("/register")
     public Result<UserLogin> register(@RequestBody RegisterRequest registerRequest) {
+        // 检查是否允许注册
+        String allowRegistration = settingService.getSetting("allow_registration");
+        if (!"true".equalsIgnoreCase(allowRegistration)) {
+            return Result.error("管理员已关闭注册功能");
+        }
+
         try {
             // 注册用户
             User user = userService.register(registerRequest);

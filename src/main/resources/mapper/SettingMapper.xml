@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.skydevs.tgdrive.mapper.SettingMapper">
+
+    <select id="findByKey" resultType="com.skydevs.tgdrive.entity.Setting">
+        SELECT * FROM settings WHERE key = #{key}
+    </select>
+
+    <select id="findAll" resultType="com.skydevs.tgdrive.entity.Setting">
+        SELECT * FROM settings
+    </select>
+
+    <update id="update" parameterType="com.skydevs.tgdrive.entity.Setting">
+        UPDATE settings SET value = #{value} WHERE key = #{key}
+    </update>
+
+    <insert id="insert" parameterType="com.skydevs.tgdrive.entity.Setting">
+        <trim prefix="INSERT INTO settings (" suffix=")" suffixOverrides=",">
+            <if test="key != null">
+                key,
+            </if>
+            <if test="value != null">
+                value,
+            </if>
+            <if test="description != null">
+                description
+            </if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="key != null">
+                #{key},
+            </if>
+            <if test="value != null">
+                #{value},
+            </if>
+            <if test="description != null">
+                #{description}
+            </if>
+        </trim>
+    </insert>
+
+</mapper>
