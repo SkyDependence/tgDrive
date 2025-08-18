@@ -1,9 +1,10 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import com.skydevs.tgdrive.entity.WebDavConfig;
+import com.skydevs.tgdrive.dto.WebDavConfig;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.WebDavConfigService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -39,7 +40,7 @@ public class WebDavConfigController {
      */
     @SaCheckRole("admin")
     @PutMapping
-    public Result<Void> updateWebDavConfig(@RequestBody WebDavConfig config) {
+    public Result<Void> updateWebDavConfig(@Valid @RequestBody WebDavConfig config) {
         try {
             boolean success = webDavConfigService.updateWebDavConfig(config);
             if (success) {

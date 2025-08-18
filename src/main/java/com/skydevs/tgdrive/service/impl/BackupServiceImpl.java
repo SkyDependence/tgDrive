@@ -34,7 +34,7 @@ public class BackupServiceImpl implements BackupService {
 
             backendConn.setAutoCommit(false); // 开启事务
 
-            // **使用 Statement 执行 ATTACH DATABASE**
+            // 使用 Statement 执行 ATTACH DATABASE
             String attachSql = "ATTACH DATABASE '" + tempFile.getAbsolutePath() + "' AS tempDb;";
             stmt.execute(attachSql);
 

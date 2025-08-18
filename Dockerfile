@@ -1,3 +1,4 @@
+#TODO: 支持arm架构
 # 设置基础镜像 - 改为 Java 17
 FROM eclipse-temurin:17-jre-alpine
 

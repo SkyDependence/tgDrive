@@ -1,6 +1,7 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
+import com.skydevs.tgdrive.annotation.NotEmptyFile;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BackupService;
 import lombok.RequiredArgsConstructor;
@@ -72,7 +73,13 @@ public class BackupController {
     @SaCheckRole("admin")
     @PostMapping("/upload")
     //TODO: 参数校验
-    public Result<String> uploadBackupDb(@RequestParam MultipartFile multipartFile) {
+    public Result<String> uploadBackupDb(@NotEmptyFile @RequestParam MultipartFile multipartFile) {
+        String filename = multipartFile.getOriginalFilename();
+        if (filename == null || !filename.endsWith(".db")) {
+            log.warn("上传了不支持的文件类型: {}", filename);
+            return Result.error("请上传.db文件");
+        }
+
         try {
             backupService.loadBackupDb(multipartFile);
             log.info("数据库恢复成功");

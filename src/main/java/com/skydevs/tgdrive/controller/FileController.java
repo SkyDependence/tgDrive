@@ -3,11 +3,13 @@ package com.skydevs.tgdrive.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
+import com.skydevs.tgdrive.annotation.NotEmptyFile;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.FileStorageService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -32,12 +34,7 @@ public class FileController {
      */
     @SaCheckLogin
     @PostMapping("/upload")
-    public CompletableFuture<Result<UploadFile>> uploadFile(@RequestParam("file") MultipartFile multipartFile, HttpServletRequest request) {
-        // 在主线程中获取用户信息，避免异步线程中无法获取 session
-        if (multipartFile == null || multipartFile.isEmpty()) {
-            return CompletableFuture.completedFuture(Result.error("上传的文件为空"));
-        }
-        
+    public CompletableFuture<Result<UploadFile>> uploadFile(@NotEmptyFile @RequestParam("file") MultipartFile multipartFile, HttpServletRequest request) {
         final long userId = StpUtil.getLoginIdAsLong();
         
         return CompletableFuture.supplyAsync(() -> Result.success(fileStorageService.getUploadFile(multipartFile, request, userId)));
@@ -86,6 +83,7 @@ public class FileController {
      * @param fileId 文件ID
      * @return 成败消息
      */
+    //TODO: 移除假删除功能
     @SaCheckLogin
     @PutMapping("/file/{fileId}/public")
     public Result<String> updateFilePublic(@PathVariable String fileId, @RequestBody Map<String, Boolean> body) {
@@ -97,7 +95,7 @@ public class FileController {
     }
     @SaCheckLogin
     @DeleteMapping("/file/{fileId}")
-    public Result<String> deleteFile(@PathVariable String fileId) {
+    public Result<String> deleteFile(@NotBlank(message = "fileId不能为空") @PathVariable String fileId) {
         log.info("删除文件，fileId: {}", fileId);
         try {
             long userId = StpUtil.getLoginIdAsLong();

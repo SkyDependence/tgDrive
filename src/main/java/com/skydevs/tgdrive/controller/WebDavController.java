@@ -77,6 +77,4 @@ public class WebDavController {
     public void handleWebDav(HttpServletRequest request, HttpServletResponse response) throws IOException {
         webDavService.switchMethod(request, response);
     }
-
-
 }

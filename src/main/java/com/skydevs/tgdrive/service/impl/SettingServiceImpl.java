@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.service.impl;
 
-import com.skydevs.tgdrive.Constants.SettingConstant;
+import com.skydevs.tgdrive.constants.SettingConstant;
 import com.skydevs.tgdrive.entity.Setting;
 import com.skydevs.tgdrive.exception.SettingNotFoundException;
 import com.skydevs.tgdrive.mapper.SettingMapper;

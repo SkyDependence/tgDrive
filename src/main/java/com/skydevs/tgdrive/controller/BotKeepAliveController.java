@@ -25,6 +25,7 @@ public class BotKeepAliveController {
      * 手动发送保活消息
      * @return 发送结果
      */
+    //TODO: 权限校验
     @PostMapping("/send")
     public Result<String> sendKeepAliveMessage() {
         try {

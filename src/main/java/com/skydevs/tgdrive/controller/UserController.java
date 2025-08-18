@@ -7,6 +7,8 @@ import com.skydevs.tgdrive.entity.User;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.UserService;
 import com.skydevs.tgdrive.service.SettingService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -26,8 +28,9 @@ public class UserController {
      * @param authRequest 用户名、密码
      * @return 登入状态
      */
+    //TODO: 重启后保存登录状态
     @PostMapping("/login")
-    public Result<UserLogin> login(@RequestBody AuthRequest authRequest) {
+    public Result<UserLogin> login(@Valid @RequestBody AuthRequest authRequest) {
         // 验证用户名和密码
         User user = userService.login(authRequest);
 
@@ -56,7 +59,7 @@ public class UserController {
      * @return 密码修改成功消息
      */
     @PostMapping("change-password")
-    public Result<String> changePassword(@RequestBody ChangePasswordRequest changePasswordRequest) {
+    public Result<String> changePassword(@Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
         long userId = StpUtil.getLoginIdAsLong();
 
         userService.changePassword(userId, changePasswordRequest);
@@ -71,7 +74,7 @@ public class UserController {
      * @return 注册结果
      */
     @PostMapping("/register")
-    public Result<UserLogin> register(@RequestBody RegisterRequest registerRequest) {
+    public Result<UserLogin> register(@Valid @RequestBody RegisterRequest registerRequest) {
         // 检查是否允许注册
         if (!settingService.isRegistrationAllowed()) {
             return Result.error("注册功能已关闭");
@@ -82,19 +85,14 @@ public class UserController {
             User user = userService.register(registerRequest);
             
             // 自动登录
-            StpUtil.login(user.getId());
-            StpUtil.getSession().set("role", user.getRole());
-            
-            UserLogin userLogin = UserLogin.builder()
-                    .UserId(user.getId())
-                    .token(StpUtil.getTokenValue())
-                    .role(user.getRole())
-                    .username(user.getUsername())
-                    .email(user.getEmail())
-                    .build();
-            
+            AuthRequest authRequest = AuthRequest.builder()
+                            .username(registerRequest.getUsername())
+                            .password(registerRequest.getPassword())
+                            .build();
+            Result<UserLogin> userLogin = login(authRequest);
+
             log.info("用户注册并登录成功: {}", user.getUsername());
-            return Result.success(userLogin);
+            return userLogin;
         } catch (Exception e) {
             log.error("用户注册失败: {}", e.getMessage());
             return Result.error(e.getMessage());
@@ -108,7 +106,7 @@ public class UserController {
      */
     @SaCheckRole("admin")
     @PostMapping("/admin/change-password")
-    public Result<String> adminChangePassword(@RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
+    public Result<String> adminChangePassword(@Valid @RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
         try {
             userService.adminChangePassword(adminChangePasswordRequest);
             log.info("管理员修改用户密码成功: {}", adminChangePasswordRequest.getUsername());
@@ -144,7 +142,7 @@ public class UserController {
      */
     @SaCheckRole("admin")
     @DeleteMapping("/admin/users/{userId}")
-    public Result<String> deleteUser(@PathVariable Long userId) {
+    public Result<String> deleteUser(@NotBlank(message = "userID不能为空") @PathVariable Long userId) {
         try {
             userService.deleteUser(userId);
             log.info("管理员删除用户成功: {}", userId);

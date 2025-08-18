@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.mapper;
 
-import com.skydevs.tgdrive.entity.WebDavConfig;
+import com.skydevs.tgdrive.dto.WebDavConfig;
 import org.apache.ibatis.annotations.*;
 
 /**

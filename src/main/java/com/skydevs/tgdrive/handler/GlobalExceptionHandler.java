@@ -11,8 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
@@ -39,6 +41,7 @@ public class GlobalExceptionHandler {
         log.info("客户端中止了连接：{}", e.getMessage());
     }
 
+    //TODO: IDM异常中止
     /**
      * 客户端终止连接处理
      * @param e 客户端终止连接异常
@@ -74,6 +77,18 @@ public class GlobalExceptionHandler {
     public Result<String> handlerException(NotLoginException e) {
         log.warn("访问被拒绝 -> 原因: {}", e.getMessage());
         return Result.error("请先登录后再访问");
+    }
+
+    // 参数校验
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<String> handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+        String message = e.getAllValidationResults().stream()
+                .map(validationResult -> validationResult.getResolvableErrors().get(0).getDefaultMessage())
+                .collect(Collectors.joining("; "));
+
+        log.warn("Controller参数校验失败: {}", message);
+        return Result.error(message);
     }
 }
 

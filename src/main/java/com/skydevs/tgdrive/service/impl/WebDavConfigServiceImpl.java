@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.service.impl;
 
-import com.skydevs.tgdrive.entity.WebDavConfig;
+import com.skydevs.tgdrive.dto.WebDavConfig;
 import com.skydevs.tgdrive.mapper.WebDavConfigMapper;
 import com.skydevs.tgdrive.service.WebDavConfigService;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
-import com.skydevs.tgdrive.Constants.SettingConstant;
+import com.skydevs.tgdrive.constants.SettingConstant;
 import com.skydevs.tgdrive.entity.Setting;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.SettingService;

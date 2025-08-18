@@ -1,6 +1,7 @@
 package com.skydevs.tgdrive.controller;
 
 import com.skydevs.tgdrive.service.DownloadService;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class DownloadController {
      * @return 文件
      */
     @GetMapping("/{fileID}")
-    public CompletableFuture<ResponseEntity<StreamingResponseBody>> downloadFile(@PathVariable String fileID) {
+    public CompletableFuture<ResponseEntity<StreamingResponseBody>> downloadFile(@NotBlank(message = "fileID不能为空") @PathVariable String fileID) {
         log.info("接收到下载请求，fileID: " + fileID);
         return CompletableFuture.supplyAsync(() -> downloadService.downloadFile(fileID));
     }

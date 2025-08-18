@@ -1,4 +1,4 @@
-package com.skydevs.tgdrive.Constants;
+package com.skydevs.tgdrive.constants;
 
 /**
  * Description:

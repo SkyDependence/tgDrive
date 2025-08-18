@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Data
@@ -7,5 +8,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Message {
+    @NotBlank(message = "消息不能为空")
     private String message;
 }

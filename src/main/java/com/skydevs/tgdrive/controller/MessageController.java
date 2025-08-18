@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.dto.Message;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,7 +35,7 @@ public class MessageController {
      */
     @SaCheckRole("admin")
     @PostMapping("/send-message")
-    public Result<String> sendMessage(@RequestBody Message message) {
+    public Result<String> sendMessage(@Valid @RequestBody Message message) {
         log.info("处理消息发送");
         if (telegramBotService.sendMessage(message.getMessage())) {
             return Result.success("消息发送成功: " + message);
@@ -42,5 +43,4 @@ public class MessageController {
             return Result.error("消息发送失败");
         }
     }
-
 }

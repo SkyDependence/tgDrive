@@ -6,6 +6,8 @@ import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.ConfigService;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +33,7 @@ public class ConfigController {
      */
     @SaCheckRole("admin")
     @GetMapping()
-    public Result<ConfigForm> getConfig(@RequestParam String name) {
+    public Result<ConfigForm> getConfig(@NotBlank(message = "配置文件名不能为空") @RequestParam String name) {
         ConfigForm config = configService.get(name);
         if (config == null) {
             log.error("配置获取失败，请检查文件名是否错误");
@@ -65,7 +67,7 @@ public class ConfigController {
      */
     @SaCheckRole("admin")
     @PostMapping()
-    public Result<String> submitConfig(@RequestBody ConfigForm configForm) {
+    public Result<String> submitConfig(@Valid @RequestBody ConfigForm configForm) {
         configService.save(configForm);
         log.info("配置保存成功");
         return Result.success("配置保存成功");
@@ -81,7 +83,7 @@ public class ConfigController {
      */
     @SaCheckRole("admin")
     @DeleteMapping("/{name}")
-    public Result<String> deleteConfig(@PathVariable("name") String name) {
+    public Result<String> deleteConfig(@NotBlank(message = "配置名不能为空") @PathVariable("name") String name) {
         configService.delete(name);
         log.info("配置删除成功");
         return Result.success("配置删除成功");
@@ -95,9 +97,10 @@ public class ConfigController {
      * @param filename 配置文件名
      * @return 成功消息
      */
+    //TODO: 规范变量命名
     @SaCheckRole("admin")
     @GetMapping("/{filename}")
-    public Result<String> loadConfig(@PathVariable("filename") String filename) {
+    public Result<String> loadConfig(@NotBlank(message = "配置文件名不能为空") @PathVariable("filename") String filename) {
         telegramBotService.initializeBot(filename);
         log.info("加载配置成功");
         return Result.success("配置加载成功");

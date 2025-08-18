@@ -1,6 +1,6 @@
 package com.skydevs.tgdrive.service;
 
-import com.skydevs.tgdrive.entity.WebDavConfig;
+import com.skydevs.tgdrive.dto.WebDavConfig;
 
 /**
  * WebDAV配置服务接口
