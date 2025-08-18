@@ -1,21 +1,26 @@
 package com.skydevs.tgdrive.Constants;
 
 /**
- * A class to hold constants for setting keys.
- * This prevents the use of "magic strings" throughout the application,
- * making the code safer and easier to maintain.
+ * Description:
+ * 设置常量类，避免魔术字符串
+ * @author SkyDev
+ * @date 2025-08-18 10:18:23
  */
 public final class SettingConstant {
 
     /**
-     * Private constructor to prevent instantiation of this utility class.
+     * Description:
+     * 私有构造器防止实例化
+     * @author SkyDev
+     * @date 2025-08-18 10:19:02
      */
     private SettingConstant() {
     }
 
     /**
-     * The key for the setting that determines whether user registration is allowed.
-     * The value should be "true" or "false".
+     * Description:
+     * 是否开放注册，true为开放，false为关闭
+     * @date 2025-08-18 10:19:39
      */
     public static final String ALLOW_REGISTRATION = "allow_registration";
 }

@@ -35,10 +35,10 @@ public interface SettingService {
 
     /**
      * Description:
-     * 检查是否允许注册
+     * 检查是否开放注册
      * @author SkyDev
      * @date 2025-08-18 09:25:37
-     * @return ture 为允许，false为不允许
+     * @return true为开放，false为关闭
      */
     boolean isRegistrationAllowed();
 }
