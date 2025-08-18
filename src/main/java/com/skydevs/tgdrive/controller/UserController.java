@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.*;
 import com.skydevs.tgdrive.entity.User;
@@ -106,6 +107,7 @@ public class UserController {
      * @return 密码修改成败消息
      */
     //TODO: 改为注解检查管理员权限
+    @SaCheckRole("admin")
     @PostMapping("admin/change-password")
     public Result<String> adminChangePassword(@RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
         // 验证当前用户是否为管理员
@@ -128,6 +130,7 @@ public class UserController {
      * 获取所有用户列表（管理员功能）
      * @return 用户列表
      */
+    @SaCheckRole("admin")
     @GetMapping("/admin/users")
     public Result<List<User>> getAllUsers() {
         // 验证当前用户是否为管理员
