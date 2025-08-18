@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.*;
 import com.skydevs.tgdrive.entity.User;
@@ -105,15 +106,9 @@ public class UserController {
      * @param adminChangePasswordRequest 管理员修改密码请求
      * @return 密码修改成败消息
      */
-    //TODO: 改为注解检查管理员权限
-    @PostMapping("admin/change-password")
+    @SaCheckRole("admin")
+    @PostMapping("/admin/change-password")
     public Result<String> adminChangePassword(@RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
-        // 验证当前用户是否为管理员
-        String role = (String) StpUtil.getSession().get("role");
-        if (!"admin".equals(role)) {
-            return Result.error("权限不足，只有管理员可以修改用户密码");
-        }
-
         try {
             userService.adminChangePassword(adminChangePasswordRequest);
             log.info("管理员修改用户密码成功: {}", adminChangePasswordRequest.getUsername());
@@ -128,14 +123,9 @@ public class UserController {
      * 获取所有用户列表（管理员功能）
      * @return 用户列表
      */
+    @SaCheckRole("admin")
     @GetMapping("/admin/users")
     public Result<List<User>> getAllUsers() {
-        // 验证当前用户是否为管理员
-        String role = (String) StpUtil.getSession().get("role");
-        if (!"admin".equals(role)) {
-            return Result.error("权限不足，只有管理员可以查看用户列表");
-        }
-
         try {
             List<User> users = userService.getAllUsers();
             // 清除密码信息，避免泄露
@@ -152,14 +142,9 @@ public class UserController {
      * @param userId 用户ID
      * @return 删除结果
      */
+    @SaCheckRole("admin")
     @DeleteMapping("/admin/users/{userId}")
     public Result<String> deleteUser(@PathVariable Long userId) {
-        // 验证当前用户是否为管理员
-        String role = (String) StpUtil.getSession().get("role");
-        if (!"admin".equals(role)) {
-            return Result.error("权限不足，只有管理员可以删除用户");
-        }
-
         try {
             userService.deleteUser(userId);
             log.info("管理员删除用户成功: {}", userId);
