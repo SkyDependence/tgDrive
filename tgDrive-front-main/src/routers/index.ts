@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import request from '@/utils/request';
+import { ElMessage } from 'element-plus';
 
 // 使用懒加载导入组件
 const Upload = () => import('../views/UploadPage.vue');
@@ -162,7 +164,22 @@ const routes: Array<RouteRecordRaw> = [
   },
   { 
     path: '/register', 
-    component: Register 
+    component: Register,
+    beforeEnter: async (to, from, next) => {
+      try {
+        const response = await request.get('/setting/registration-status');
+        if (response.data.code === 1 && response.data.data.isRegistrationAllowed) {
+          next();
+        } else {
+          ElMessage.warning('管理员已关闭注册功能');
+          next('/login');
+        }
+      } catch (error) {
+        console.error('获取注册状态失败:', error);
+        ElMessage.error('无法获取注册状态，请稍后再试');
+        next('/login');
+      }
+    }
   },
   {
     path: '/:pathMatch(.*)*',

@@ -60,7 +60,7 @@
           </el-button>
         </el-form-item>
 
-        <el-form-item class="register-link">
+        <el-form-item v-if="isRegistrationAllowed" class="register-link">
           <div class="register-prompt">
             <span class="prompt-text">没有账户？</span>
             <router-link to="/register" class="register-btn">
@@ -106,6 +106,7 @@ const loginForm = ref({
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
+const isRegistrationAllowed = ref(false)
 
 const rules: FormRules = {
   username: [
@@ -175,12 +176,26 @@ const forgotPassword = () => {
   })
 }
 
+const checkRegistrationStatus = async () => {
+  try {
+    const response = await request.get('/setting/registration-status')
+    if (response.data.code === 1) {
+      isRegistrationAllowed.value = response.data.data.isRegistrationAllowed
+    }
+  } catch (error) {
+    console.error('获取注册状态失败:', error)
+    // 出现错误时默认为不允许注册
+    isRegistrationAllowed.value = false
+  }
+}
+
 onMounted(() => {
   const savedUsername = localStorage.getItem('username')
   if (savedUsername) {
     loginForm.value.username = savedUsername
     rememberMe.value = true
   }
+  checkRegistrationStatus()
 })
 </script>
 

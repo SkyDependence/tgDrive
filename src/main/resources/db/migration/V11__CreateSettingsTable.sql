@@ -5,4 +5,4 @@ CREATE TABLE IF NOT EXISTS settings (
     description TEXT
 );
 
-INSERT INTO settings (key, value) VALUES ('allow_registration', 'true');
+INSERT INTO settings (key, value) VALUES ('allow_registration', 'false');

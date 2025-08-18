@@ -17,6 +17,18 @@
         </div>
       </template>
 
+      <!-- 系统设置 -->
+      <div class="settings-container">
+        <div class="setting-item">
+          <span class="setting-label">允许用户注册</span>
+          <el-switch
+            v-model="allowRegistration"
+            @change="handleRegistrationStatusChange"
+            :loading="registrationSettingLoading"
+          />
+        </div>
+      </div>
+
       <!-- 用户统计卡片 -->
       <div class="stats-container">
         <div class="stat-card">
@@ -280,6 +292,12 @@ interface SetRoleForm {
   newRole: string
 }
 
+interface SettingItem {
+  key: string;
+  value: string;
+  description: string;
+}
+
 const userList = ref<UserItem[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
@@ -296,6 +314,10 @@ const selectedUser = ref<UserItem | null>(null)
 const totalUsers = ref(0)
 const onlineUsers = ref(0)
 const adminUsers = ref(0)
+
+// 系统设置
+const allowRegistration = ref(false)
+const registrationSettingLoading = ref(false)
 
 const changePasswordForm = ref<ChangePasswordForm>({
   username: '',
@@ -390,6 +412,48 @@ const fetchUserList = async () => {
     ElMessage.error('获取用户列表失败，请检查网络连接')
   } finally {
     loading.value = false
+  }
+}
+
+// 获取系统设置
+const fetchSettings = async () => {
+  try {
+    const response = await request.get('/setting/settings')
+    if (response.data?.code === 1) {
+      const settings: SettingItem[] = response.data.data
+      const registrationSetting = settings.find(s => s.key === 'allow_registration')
+      if (registrationSetting) {
+        allowRegistration.value = registrationSetting.value === 'true'
+      }
+    } else {
+      ElMessage.error(response.data?.msg || '获取系统设置失败')
+    }
+  } catch (error) {
+    console.error('获取系统设置失败:', error)
+    ElMessage.error('获取系统设置失败，请检查网络连接')
+  }
+}
+
+// 更新注册状态
+const handleRegistrationStatusChange = async (newValue: boolean | string | number) => {
+  registrationSettingLoading.value = true
+  try {
+    const response = await request.post('/setting', {
+      key: 'allow_registration',
+      value: newValue.toString()
+    })
+    if (response.data?.code === 1) {
+      ElMessage.success('设置更新成功')
+    } else {
+      ElMessage.error(response.data?.msg || '设置更新失败')
+      allowRegistration.value = !newValue
+    }
+  } catch (error) {
+    console.error('设置更新失败:', error)
+    ElMessage.error('设置更新失败，请检查网络连接')
+    allowRegistration.value = !newValue
+  } finally {
+    registrationSettingLoading.value = false
   }
 }
 
@@ -525,6 +589,7 @@ onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   fetchUserList()
+  fetchSettings()
 })
 
 onBeforeUnmount(() => {
@@ -733,6 +798,27 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
+/* 设置容器样式 */
+.settings-container {
+  padding: 20px;
+  background: var(--el-bg-color-page);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  gap: 20px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.setting-label {
+  font-weight: 500;
+}
+
 /* Responsive styles */
 @media (max-width: 767px) {
   .page-container {
@@ -764,6 +850,10 @@ onBeforeUnmount(() => {
 
   .search-button-group .el-button {
     flex: 1;
+  }
+
+  .settings-container {
+    padding: 15px 10px;
   }
 
   /* 移动端统计卡片样式 */

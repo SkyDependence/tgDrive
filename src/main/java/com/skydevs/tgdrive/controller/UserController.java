@@ -72,7 +72,6 @@ public class UserController {
     @PostMapping("/register")
     public Result<UserLogin> register(@RequestBody RegisterRequest registerRequest) {
         // 检查是否允许注册
-        // Check if registration is allowed
         if (!settingService.isRegistrationAllowed()) {
             return Result.error("注册功能已关闭");
         }
@@ -106,6 +105,7 @@ public class UserController {
      * @param adminChangePasswordRequest 管理员修改密码请求
      * @return 密码修改成败消息
      */
+    //TODO: 改为注解检查管理员权限
     @PostMapping("admin/change-password")
     public Result<String> adminChangePassword(@RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
         // 验证当前用户是否为管理员
