@@ -1,4 +1,4 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.user;
 
 /**
  * 邮箱已存在异常

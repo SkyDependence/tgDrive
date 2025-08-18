@@ -1,6 +1,8 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.file;
 
-public class UploadFileIsNullException extends BaseException{
+import com.skydevs.tgdrive.exception.BaseException;
+
+public class UploadFileIsNullException extends BaseException {
     public UploadFileIsNullException() {
         super("上传的文件为空！");
     }

@@ -1,6 +1,8 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.setting;
 
-public class SettingNotFoundException extends BaseException{
+import com.skydevs.tgdrive.exception.BaseException;
+
+public class SettingNotFoundException extends BaseException {
     public SettingNotFoundException() {
         super("该设置不存在");
     }

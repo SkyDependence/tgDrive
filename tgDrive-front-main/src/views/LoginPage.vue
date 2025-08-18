@@ -7,6 +7,7 @@
         <p class="login-subtitle">您可以使用访客账户登录</p>
         <div class="account-info">
           <p><strong>访客账户:</strong> visitor / hello</p>
+          <!--TODO: 点击复制-->
         </div>
       </div>
 

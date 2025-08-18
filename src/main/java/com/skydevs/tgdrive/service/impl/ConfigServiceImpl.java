@@ -1,7 +1,7 @@
 package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.dto.ConfigForm;
-import com.skydevs.tgdrive.exception.NoConfigException;
+import com.skydevs.tgdrive.exception.config.NoConfigException;
 import com.skydevs.tgdrive.mapper.ConfigMapper;
 import com.skydevs.tgdrive.service.ConfigService;
 import lombok.RequiredArgsConstructor;

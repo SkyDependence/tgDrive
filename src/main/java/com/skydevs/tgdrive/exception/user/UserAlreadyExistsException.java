@@ -1,4 +1,4 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.user;
 
 /**
  * 用户已存在异常

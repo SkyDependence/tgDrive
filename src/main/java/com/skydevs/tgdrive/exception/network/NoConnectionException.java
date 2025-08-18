@@ -1,6 +1,8 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.network;
 
-public class NoConnectionException extends BaseException{
+import com.skydevs.tgdrive.exception.BaseException;
+
+public class NoConnectionException extends BaseException {
     public NoConnectionException() {
         super("请检查网络连接");
     }

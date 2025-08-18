@@ -1,6 +1,8 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.bot;
 
-public class GetBotTokenFailedException extends BaseException{
+import com.skydevs.tgdrive.exception.BaseException;
+
+public class GetBotTokenFailedException extends BaseException {
     public GetBotTokenFailedException() {
         super("获取bot token失败");
     }

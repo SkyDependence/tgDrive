@@ -1,7 +1,7 @@
 package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.entity.FileInfo;
-import com.skydevs.tgdrive.exception.FailedToGetSizeException;
+import com.skydevs.tgdrive.exception.file.FailedToGetSizeException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.service.FileStorageService;

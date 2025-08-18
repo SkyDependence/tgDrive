@@ -1,6 +1,8 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.file;
 
-public class UploadFailedException extends BaseException{
+import com.skydevs.tgdrive.exception.BaseException;
+
+public class UploadFailedException extends BaseException {
     public UploadFailedException() {
         super("上传文件失败！");
     }

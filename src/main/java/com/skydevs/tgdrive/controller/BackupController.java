@@ -72,7 +72,6 @@ public class BackupController {
      */
     @SaCheckRole("admin")
     @PostMapping("/upload")
-    //TODO: 参数校验
     public Result<String> uploadBackupDb(@NotEmptyFile @RequestParam MultipartFile multipartFile) {
         String filename = multipartFile.getOriginalFilename();
         if (filename == null || !filename.endsWith(".db")) {

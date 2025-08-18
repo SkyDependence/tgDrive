@@ -1,4 +1,6 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.file;
+
+import com.skydevs.tgdrive.exception.BaseException;
 
 public class FailedToGetSizeException extends BaseException {
     public FailedToGetSizeException() {

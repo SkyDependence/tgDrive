@@ -3,7 +3,7 @@ package com.skydevs.tgdrive.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.pengrad.telegrambot.model.File;
 import com.skydevs.tgdrive.entity.BigFileInfo;
-import com.skydevs.tgdrive.exception.BotNotSetException;
+import com.skydevs.tgdrive.exception.bot.BotNotSetException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.service.FileStorageService;

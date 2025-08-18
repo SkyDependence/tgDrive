@@ -2,7 +2,7 @@ package com.skydevs.tgdrive.controller;
 
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.dto.ConfigForm;
-import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
+import com.skydevs.tgdrive.exception.config.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.ConfigService;
 import com.skydevs.tgdrive.service.TelegramBotService;

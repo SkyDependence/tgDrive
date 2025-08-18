@@ -1,4 +1,6 @@
-package com.skydevs.tgdrive.exception;
+package com.skydevs.tgdrive.exception.user;
+
+import com.skydevs.tgdrive.exception.BaseException;
 
 public class InsufficientPermissionException extends BaseException {
     public InsufficientPermissionException() {

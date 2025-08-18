@@ -2,25 +2,18 @@ package com.skydevs.tgdrive.service.impl;
 
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.File;
-import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.request.GetFile;
-import com.pengrad.telegrambot.request.SendDocument;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.GetFileResponse;
-import com.pengrad.telegrambot.response.SendResponse;
 import com.skydevs.tgdrive.dto.ConfigForm;
-import com.skydevs.tgdrive.exception.BotNotSetException;
-import com.skydevs.tgdrive.exception.ConfigFileNotFoundException;
-import com.skydevs.tgdrive.exception.NoConfigException;
+import com.skydevs.tgdrive.exception.bot.BotNotSetException;
+import com.skydevs.tgdrive.exception.config.ConfigFileNotFoundException;
+import com.skydevs.tgdrive.exception.config.NoConfigException;
 import com.skydevs.tgdrive.service.ConfigService;
 import com.skydevs.tgdrive.service.TelegramBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * Telegram Bot服务实现类
