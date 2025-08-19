@@ -3,7 +3,7 @@
     <!-- 指定日志文件存放路径和文件名 -->
     <property name="LOG_PATH" value="./logs"/>
     <property name="LOG_FILE_NAME" value="application.log"/>
-
+    <!-- TODO: 日志文件记录 -->
     <!-- 控制台输出 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

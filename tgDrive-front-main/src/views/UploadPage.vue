@@ -219,7 +219,8 @@ const handleUpload = async () => {
 };
 
 const connectWebSocket = () => {
-  const wsUrl = `ws://${window.location.host}/ws/upload-progress`;
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = `${protocol}://${window.location.host}/ws/upload-progress`;
   websocket.value = new WebSocket(wsUrl);
 
   websocket.value.onmessage = (event) => {
