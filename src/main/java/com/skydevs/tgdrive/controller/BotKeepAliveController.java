@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.BotKeepAliveService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class BotKeepAliveController {
      * 手动发送保活消息
      * @return 发送结果
      */
-    //TODO: 权限校验
+    @SaCheckRole("admin")
     @PostMapping("/send")
     public Result<String> sendKeepAliveMessage() {
         try {
@@ -47,6 +48,7 @@ public class BotKeepAliveController {
      * 启动定时保活任务
      * @return 启动结果
      */
+    @SaCheckRole("admin")
     @PostMapping("/start")
     public Result<String> startKeepAliveTask() {
         try {
@@ -63,6 +65,7 @@ public class BotKeepAliveController {
      * 停止定时保活任务
      * @return 停止结果
      */
+    @SaCheckRole("admin")
     @PostMapping("/stop")
     public Result<String> stopKeepAliveTask() {
         try {
@@ -79,6 +82,7 @@ public class BotKeepAliveController {
      * 获取保活任务状态
      * @return 任务状态
      */
+    @SaCheckRole("admin")
     @GetMapping("/status")
     public Result<String> getKeepAliveTaskStatus() {
         try {
@@ -96,6 +100,7 @@ public class BotKeepAliveController {
      * 获取保活功能配置信息
      * @return 配置信息
      */
+    @SaCheckRole("admin")
     @GetMapping("/config")
     public Result<String> getKeepAliveConfig() {
         try {
