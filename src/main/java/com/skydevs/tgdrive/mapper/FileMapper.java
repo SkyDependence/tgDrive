@@ -85,4 +85,6 @@ public interface FileMapper {
 
     @Update("UPDATE files SET is_public = #{isPublic} WHERE file_id = #{fileId}")
     void updateIsPublic(@Param("fileId") String fileId, @Param("isPublic") boolean isPublic);
+
+    FileInfo getFileByIdentifier(@Param("identifier") String identifier);
 }

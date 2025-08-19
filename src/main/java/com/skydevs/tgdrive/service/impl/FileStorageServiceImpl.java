@@ -15,6 +15,7 @@ import com.skydevs.tgdrive.exception.user.InsufficientPermissionException;
 import com.skydevs.tgdrive.exception.file.UploadFileIsNullException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.result.PageResult;
+import com.skydevs.tgdrive.service.ChunkStorageService;
 import com.skydevs.tgdrive.service.FileStorageService;
 import com.skydevs.tgdrive.service.TelegramBotService;
 import com.skydevs.tgdrive.utils.StringUtil;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedInputStream;
@@ -59,6 +61,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Autowired
     private UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
+
+    @Autowired
+    private ChunkStorageService chunkStorageService;
 
     @Autowired
     @Qualifier("uploadTaskExecutor")
@@ -349,6 +354,56 @@ public class FileStorageServiceImpl implements FileStorageService {
         } else {
             throw new InsufficientPermissionException("无权限更新此文件");
         }
+    }
+
+    @Override
+    @Transactional
+    public UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId) {
+        try (InputStream mergedStream = chunkStorageService.mergeChunks(identifier, filename, totalChunks)) {
+            // Use existing upload logic to send the merged file to Telegram
+            String fileID = uploadFile(mergedStream, filename, totalSize);
+
+            // Clean up the temporary chunks
+            chunkStorageService.cleanupChunks(identifier);
+
+            // Send completion message via WebSocket
+            uploadProgressWebSocketHandler.sendUploadComplete(filename);
+
+            // Construct download URL
+            String prefix = StringUtil.getPrefix(request);
+            String downloadUrl = prefix + "/d/" + fileID;
+
+            // Save file info to the database
+            FileInfo fileInfo = FileInfo.builder()
+                    .fileId(fileID)
+                    .size(UserFriendly.humanReadableFileSize(totalSize))
+                    .fullSize(totalSize)
+                    .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
+                    .downloadUrl(downloadUrl)
+                    .fileName(filename)
+                    .userId(userId)
+                    .fileIdentifier(identifier) // Save the unique identifier
+                    .build();
+            fileMapper.insertFile(fileInfo);
+
+            // Create response object
+            UploadFile uploadFile = new UploadFile();
+            uploadFile.setFileName(filename);
+            uploadFile.setDownloadLink(downloadUrl);
+            uploadFile.setFileId(fileID);
+            return uploadFile;
+
+        } catch (IOException e) {
+            log.error("Failed to merge and upload file for identifier: {}", identifier, e);
+            // Also cleanup chunks in case of failure
+            chunkStorageService.cleanupChunks(identifier);
+            throw new RuntimeException("Failed to merge and upload file", e);
+        }
+    }
+
+    @Override
+    public boolean isFileExists(String identifier) {
+        return fileMapper.getFileByIdentifier(identifier) != null;
     }
 
     /**

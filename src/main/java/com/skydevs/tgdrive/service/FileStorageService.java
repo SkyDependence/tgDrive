@@ -60,4 +60,25 @@ public interface FileStorageService {
      * @param role 权限
      */
     void updateIsPublic(String fileId, boolean isPublic, Long userId, String role);
+
+    /**
+     * Merges file chunks and finalizes the upload.
+     *
+     * @param identifier  the unique identifier of the file
+     * @param filename    the original name of the file
+     * @param totalChunks the total number of chunks
+     * @param totalSize   the total size of the file
+     * @param request     the HTTP servlet request
+     * @param userId      the ID of the user uploading the file
+     * @return an UploadFile object containing details of the uploaded file
+     */
+    UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId);
+
+    /**
+     * Checks if a file with the given identifier already exists.
+     *
+     * @param identifier the unique identifier of the file
+     * @return true if the file exists, false otherwise
+     */
+    boolean isFileExists(String identifier);
 }
