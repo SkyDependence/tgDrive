@@ -343,7 +343,7 @@ const batchDeleteFiles = async () => {
   
   try {
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedFiles.value.length} 个文件吗？此操作不可撤销。`,
+      `确定要删除选中的 ${selectedFiles.value.length} 个文件吗？文件将被永久删除，此操作不可撤销。`,
       '批量删除确认',
       {
         confirmButtonText: '确定删除',
@@ -456,7 +456,7 @@ const handleDownloadFromPreview = (file: FileItem) => {
 const deleteFile = async (file: FileItem) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除文件 "${file.fileName}" 吗？此操作不可撤销。`,
+      `确定要删除文件 "${file.fileName}" 吗？文件将被永久删除，此操作不可撤销。`,
       '删除确认',
       {
         confirmButtonText: '确定删除',

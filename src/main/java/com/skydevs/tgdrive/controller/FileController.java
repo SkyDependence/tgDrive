@@ -83,7 +83,6 @@ public class FileController {
      * @param fileId 文件ID
      * @return 成败消息
      */
-    //TODO: 移除假删除功能
     @SaCheckLogin
     @PutMapping("/file/{fileId}/public")
     public Result<String> updateFilePublic(@PathVariable String fileId, @RequestBody Map<String, Boolean> body) {

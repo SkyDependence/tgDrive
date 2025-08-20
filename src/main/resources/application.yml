@@ -9,8 +9,9 @@ sa-token:
   timeout: 36000000        # token有效期，单位：秒（默认30分钟）
   is-concurrent: true     # 是否允许同一账号多地登录（默认：true）
   is-share: true           # 是否在同一个会话中共享 Token（默认：true）
-  token-style: uuid        # token 生成的样式（默认：uuid）
+  token-style: jwt        # token 生成的样式（默认：uuid）
   is-log: false            # 是否输出操作日志
+  jwt-secret-key: "${SA_TOKEN_JWT_SECRET_KEY:tgdrive-token-happy-hello-world}"
 
 spring:
   flyway:
