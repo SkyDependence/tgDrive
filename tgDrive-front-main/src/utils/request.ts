@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { callGlobalClearUserInfo } from '@/store/user';
+import router from '@/routers'; // 导入 router 实例
 
 // 请求防抖映射
 const pendingRequests = new Map<string, AbortController>();
@@ -54,7 +55,13 @@ service.interceptors.response.use(
     
     if (error.response && error.response.status === 401) {
       callGlobalClearUserInfo();
-      window.location.href = '/login';
+      // 使用 router 进行跳转，并携带 redirect 参数
+      router.push({
+        path: '/login',
+        query: {
+          redirect: router.currentRoute.value.fullPath
+        }
+      });
     }
     return Promise.reject(error);
   }

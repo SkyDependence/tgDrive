@@ -11,8 +11,6 @@
             <span class="copyable-text" @click="copyToClipboard('visitor')">visitor</span> /
             <span class="copyable-text" @click="copyToClipboard('hello')">hello</span>
           </p>
-          <!--TODO: 点击复制-->
-          <!--TODO: 登录后回到登录前页面-->
         </div>
       </div>
 
@@ -97,7 +95,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from 'element-plus'
 import { User, Lock, Cloudy } from '@element-plus/icons-vue'
 import request from '../utils/request'
@@ -113,6 +111,7 @@ const copyToClipboard = async (text: string) => {
   }
 };
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const loginForm = ref({
   username: '',
@@ -165,13 +164,19 @@ const handleLogin = () => {
           localStorage.removeItem('rememberedUsername')
         }
         ElMessage.success(response.data.msg || '登录成功')
-        // 根据用户角色跳转到对应页面
-        if (userLogin.role === 'admin') {
-          router.push('/home')
-        } else if (userLogin.role === 'user') {
-          router.push('/user/home')
+        
+        const redirect = route.query.redirect as string | undefined
+        if (redirect) {
+          router.push(redirect)
         } else {
-          router.push('/')
+          // 根据用户角色跳转到对应页面
+          if (userLogin.role === 'admin') {
+            router.push('/home')
+          } else if (userLogin.role === 'user') {
+            router.push('/user/home')
+          } else {
+            router.push('/')
+          }
         }
       } else {
         ElMessage.error(response.data.msg || '登录失败')

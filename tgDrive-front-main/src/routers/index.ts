@@ -192,38 +192,32 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('role');
-  
-  // 检查是否登录
-  if (to.meta.requiresAuth && !token) {
-    next('/login');
-    return;
-  }
+// Navigation guard
+const whiteList = ['/login', '/register', '/agreement', '/privacy', '/about']; // Whitelist for routes that don't require authentication
 
-  // 检查角色权限
-  if (to.meta.requiredRole) {
-    if (userRole === 'admin') {
+router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    // If logged in
+    if (to.path === '/login') {
+      // If trying to access login page, redirect to home
+      next({ path: '/' });
+    } else {
+      // For other pages, proceed normally
+      // Here you could add logic to verify token validity or fetch user roles if needed
       next();
-    } else if (userRole === 'visitor' && to.meta.requiredRole === 'visitor') {
-      next();
-    } else if (userRole === 'user' && to.meta.requiredRole === 'user') {
+    }
+  } else {
+    // If not logged in
+    if (whiteList.indexOf(to.path) !== -1) {
+      // If the route is in the whitelist, allow access
       next();
     } else {
-      // 根据角色重定向到对应的首页
-      if (userRole === 'admin') {
-        next('/home');
-      } else if (userRole === 'user') {
-        next('/user/home');
-      } else {
-        next('/');
-      }
+      // For other routes, redirect to login page with the intended destination
+      next({ path: '/login', query: { redirect: to.fullPath } });
     }
-    return;
   }
-
-  next();
 });
 
 export default router;
