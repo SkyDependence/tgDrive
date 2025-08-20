@@ -11,7 +11,7 @@ sa-token:
   is-share: true           # 是否在同一个会话中共享 Token（默认：true）
   token-style: jwt        # token 生成的样式（默认：uuid）
   is-log: false            # 是否输出操作日志
-  jwt-secret-key: "${SA_TOKEN_JWT_SECRET_KEY:tgdrive-token-happy-hello-world}"
+  jwt-secret-key: "${TG_DRIVE_SA_TOKEN_JWT_SECRET_KEY:tgdrive-token-happy-hello-world}"
 
 spring:
   flyway:
