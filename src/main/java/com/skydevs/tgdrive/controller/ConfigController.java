@@ -6,6 +6,7 @@ import com.skydevs.tgdrive.exception.config.ConfigFileNotFoundException;
 import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.ConfigService;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import com.skydevs.tgdrive.utils.StringUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +69,8 @@ public class ConfigController {
     @SaCheckRole("admin")
     @PostMapping()
     public Result<String> submitConfig(@Valid @RequestBody ConfigForm configForm) {
+        String name = configForm.getName();
+        configForm.setName(name.trim());
         configService.save(configForm);
         log.info("配置保存成功");
         return Result.success("配置保存成功");
