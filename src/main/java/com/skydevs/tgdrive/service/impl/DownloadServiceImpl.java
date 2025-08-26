@@ -296,7 +296,8 @@ public class DownloadServiceImpl implements DownloadService {
      * @return
      * @throws IOException
      */
-    private InputStream downloadFileInputStream(String fileID) throws IOException {
+    @Override
+    public InputStream downloadFileInputStream(String fileID) throws IOException {
         File file = telegramBotService.getFile(fileID);
         String fileUrl = telegramBotService.getFullFilePath(file);
 

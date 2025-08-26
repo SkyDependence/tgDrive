@@ -1,115 +1,170 @@
 package com.skydevs.tgdrive.service.impl;
 
 import com.skydevs.tgdrive.dto.ChunkUploadRequest;
+import com.skydevs.tgdrive.entity.FileChunk;
+import com.skydevs.tgdrive.entity.UploadSession;
+import com.skydevs.tgdrive.mapper.UploadSessionMapper;
 import com.skydevs.tgdrive.service.ChunkStorageService;
+import com.skydevs.tgdrive.service.DownloadService;
+import com.skydevs.tgdrive.service.FileStorageService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ChunkStorageServiceImpl implements ChunkStorageService {
+    private final UploadSessionMapper uploadSessionMapper;
+    private final FileStorageService fileStorageService;
+    private final DownloadService downloadService;
 
-    private final Path chunkDir;
-
-    public ChunkStorageServiceImpl() {
-        String tempDir = System.getProperty("java.io.tmpdir");
-        this.chunkDir = Paths.get(tempDir, "tgdrive-chunks");
-        if (Files.notExists(chunkDir)) {
-            try {
-                Files.createDirectories(chunkDir);
-            } catch (IOException e) {
-                log.error("Failed to create chunk directory: {}", chunkDir, e);
-                throw new RuntimeException("Failed to create chunk directory", e);
-            }
-        }
-    }
+    private final int CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
     @Override
+    @Transactional
     public void saveChunk(ChunkUploadRequest request) {
-        Path chunkPath = getChunkPath(request.getIdentifier(), request.getChunkNumber());
-        try {
-            Files.createDirectories(chunkPath.getParent());
-            Files.write(chunkPath, request.getFile().getBytes());
-        } catch (IOException e) {
-            log.error("Failed to save chunk: {}", chunkPath, e);
-            throw new RuntimeException("Failed to save chunk", e);
-        }
+        // This method is deprecated - use saveChunkToTelegram instead
+        throw new UnsupportedOperationException("saveChunk is deprecated. Use saveChunkToTelegram instead.");
     }
 
     @Override
     public Set<Integer> checkUploadedChunks(String identifier) {
-        Path identifierDir = chunkDir.resolve(identifier);
-        if (Files.notExists(identifierDir)) {
-            return new HashSet<>();
+        UploadSession session = uploadSessionMapper.getSessionByIdentifier(identifier);
+        if (session == null) {
+            return Collections.emptySet();
         }
-        try (Stream<Path> stream = Files.list(identifierDir)) {
-            return stream
-                    .map(path -> Integer.parseInt(path.getFileName().toString()))
-                    .collect(Collectors.toSet());
-        } catch (IOException e) {
-            log.error("Failed to check uploaded chunks for identifier: {}", identifier, e);
-            return new HashSet<>();
-        }
+        
+        List<Integer> chunks = uploadSessionMapper.getCompletedChunkNumbers(session.getId());
+        return new HashSet<>(chunks);
     }
 
     @Override
-    public InputStream mergeChunks(String identifier, String filename, int totalChunks) {
-        Path identifierDir = chunkDir.resolve(identifier);
-        Path mergedFilePath = identifierDir.resolve(filename);
-
-        try {
-            // Create the merged file
-            Files.deleteIfExists(mergedFilePath);
-            Files.createFile(mergedFilePath);
-
-            // Append chunks in order
-            for (int i = 1; i <= totalChunks; i++) {
-                Path chunkPath = getChunkPath(identifier, i);
-                if (Files.exists(chunkPath)) {
-                    byte[] chunkBytes = Files.readAllBytes(chunkPath);
-                    Files.write(mergedFilePath, chunkBytes, StandardOpenOption.APPEND);
-                } else {
-                    throw new IOException("Chunk " + i + " is missing for identifier " + identifier);
-                }
-            }
-            return new BufferedInputStream(Files.newInputStream(mergedFilePath));
-        } catch (IOException e) {
-            log.error("Failed to merge chunks for identifier: {}", identifier, e);
-            throw new RuntimeException("Failed to merge chunks", e);
-        }
+    @Transactional
+    public InputStream mergeChunks(String identifier, String filename, int totalChunks) throws IOException {
+        // This method is no longer needed for the new implementation
+        // We create BigFileInfo directly instead of merging chunks
+        throw new UnsupportedOperationException("mergeChunks is not supported in the new implementation. Use getChunkFileIds instead.");
     }
 
     @Override
+    @Transactional
     public void cleanupChunks(String identifier) {
-        Path identifierDir = chunkDir.resolve(identifier);
-        if (Files.exists(identifierDir)) {
-            try (Stream<Path> walk = Files.walk(identifierDir)) {
-                walk.sorted(Comparator.reverseOrder())
-                        .forEach(path -> {
-                            try {
-                                Files.delete(path);
-                            } catch (IOException e) {
-                                log.error("Failed to delete path: {}", path, e);
-                            }
-                        });
-            } catch (IOException e) {
-                log.error("Failed to cleanup chunks for identifier: {}", identifier, e);
-            }
+        UploadSession session = uploadSessionMapper.getSessionByIdentifier(identifier);
+        if (session != null) {
+            uploadSessionMapper.deleteChunksBySessionId(session.getId());
+            uploadSessionMapper.deleteSession(identifier);
         }
     }
 
-    private Path getChunkPath(String identifier, int chunkNumber) {
-        return chunkDir.resolve(identifier).resolve(String.valueOf(chunkNumber));
+    /**
+     * Description:
+     * 创建断点续传上传文件会话
+     * @author SkyDev
+     * @date 2025-08-26 14:28:21
+     * @param filename 文件名
+     * @param totalSize 文件大小
+     * @param userId 用户id
+     * @return 断点续传上传文件会话
+     */
+    public UploadSession createUploadSession(String filename, Long totalSize, Long userId) {
+        String identifier = UUID.randomUUID().toString();
+        int totalChunks = (int) Math.ceil((double) totalSize / CHUNK_SIZE);
+        Long now = System.currentTimeMillis() / 1000;
+
+        UploadSession session = UploadSession.builder()
+                .identifier(identifier)
+                .filename(filename)
+                .totalSize(totalSize)
+                .totalChunks(totalChunks)
+                .chunkSize(CHUNK_SIZE)
+                .userId(userId)
+                .status("uploading")
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        uploadSessionMapper.insertSession(session);
+        return session;
+    }
+
+    /**
+     * Save chunk to Telegram
+     */
+    @Transactional
+    public String saveChunkToTelegram(String identifier, Integer chunkNumber, InputStream chunkData, String chunkFilename) {
+        UploadSession session = uploadSessionMapper.getSessionByIdentifier(identifier);
+        if (session == null) {
+            throw new RuntimeException("Upload session not found: " + identifier);
+        }
+
+        // Upload chunk to Telegram
+        String chunkId = fileStorageService.uploadFile(chunkData, chunkFilename, session.getChunkSize());
+
+        // Save chunk record
+        FileChunk chunk = FileChunk.builder()
+                .sessionId(session.getId())
+                .chunkNumber(chunkNumber)
+                .chunkId(chunkId)
+                .chunkSize(session.getChunkSize())
+                .status("completed")
+                .createdAt(System.currentTimeMillis() / 1000)
+                .build();
+
+        uploadSessionMapper.insertChunk(chunk);
+
+        // Update session time
+        uploadSessionMapper.updateSessionStatus(identifier, "uploading", System.currentTimeMillis() / 1000);
+
+        return chunkId;
+    }
+
+    /**
+     * Check if chunk exists
+     */
+    public boolean isChunkExists(String identifier, Integer chunkNumber) {
+        return uploadSessionMapper.checkChunkExists(identifier, chunkNumber) > 0;
+    }
+
+    /**
+     * Get upload session info
+     */
+    public UploadSession getUploadSession(String identifier) {
+        return uploadSessionMapper.getSessionByIdentifier(identifier);
+    }
+
+    /**
+     * Get all chunk file IDs for a session
+     */
+    public List<String> getChunkFileIds(String identifier) {
+        UploadSession session = uploadSessionMapper.getSessionByIdentifier(identifier);
+        if (session == null) {
+            throw new RuntimeException("Upload session not found: " + identifier);
+        }
+
+        List<FileChunk> chunks = uploadSessionMapper.getChunksBySessionId(session.getId());
+        // Sort by chunk number to ensure correct order
+        chunks.sort(Comparator.comparingInt(FileChunk::getChunkNumber));
+        
+        return chunks.stream()
+                .map(FileChunk::getChunkId)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Cleanup expired sessions
+     * @return number of cleaned sessions
+     */
+    @Transactional
+    public int cleanupExpiredSessions() {
+        // Clean up uploads unfinished after 7 days
+        Long expireTime = System.currentTimeMillis() / 1000 - (7 * 24 * 60 * 60);
+        return uploadSessionMapper.cleanupExpiredSessions(expireTime);
     }
 }

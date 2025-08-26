@@ -5,6 +5,7 @@ import com.skydevs.tgdrive.result.PageResult;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -71,8 +72,9 @@ public interface FileStorageService {
      * @param request     the HTTP servlet request
      * @param userId      the ID of the user uploading the file
      * @return an UploadFile object containing details of the uploaded file
+     * @throws IOException
      */
-    UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId);
+    UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId) throws IOException;
 
     /**
      * Checks if a file with the given identifier already exists.

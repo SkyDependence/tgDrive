@@ -11,8 +11,17 @@
             </div>
           </template>
 
+          <!-- Upload Mode Toggle -->
+          <div class="upload-mode-toggle">
+            <el-radio-group v-model="uploadMode" size="large">
+              <el-radio-button label="normal">普通上传</el-radio-button>
+              <el-radio-button label="chunk">分块上传(断点续传)</el-radio-button>
+            </el-radio-group>
+          </div>
+
           <!-- Upload Zone -->
           <el-upload
+            v-if="uploadMode === 'normal'"
             ref="uploadRef"
             drag
             multiple
@@ -33,6 +42,12 @@
               </div>
             </template>
           </el-upload>
+
+          <!-- Chunk Upload Component -->
+          <ChunkUpload
+            v-else
+            :on-success="handleChunkUploadSuccess"
+          />
 
           <!-- Upload Button -->
           <div class="upload-actions">
@@ -118,6 +133,7 @@ import axios from 'axios';
 import { ElMessage, UploadFile, UploadFiles, UploadRawFile, UploadInstance } from 'element-plus';
 import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
+import ChunkUpload from '@/components/ChunkUpload.vue';
 
 // --- Interfaces ---
 interface UploadedFile {
@@ -151,6 +167,7 @@ const uploadedFiles = ref<UploadedFile[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref<ProgressItem[]>([]);
 const websocket = ref<WebSocket | null>(null);
+const uploadMode = ref<'normal' | 'chunk'>('normal');
 
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
@@ -163,6 +180,11 @@ const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
 
 const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
   selectedFiles.value = fileList;
+};
+
+// 处理分块上传成功
+const handleChunkUploadSuccess = (data: UploadedFile) => {
+  uploadedFiles.value.push(data);
 };
 
 // Corrected: Using a sequential for...of loop for robust, one-by-one uploads.
@@ -329,6 +351,11 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 18px;
   font-weight: 500;
+}
+
+.upload-mode-toggle {
+  margin-bottom: 20px;
+  text-align: center;
 }
 
 .upload-dragger {

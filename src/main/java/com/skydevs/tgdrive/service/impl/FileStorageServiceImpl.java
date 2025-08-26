@@ -358,12 +358,26 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     @Transactional
-    public UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId) {
-        try (InputStream mergedStream = chunkStorageService.mergeChunks(identifier, filename, totalChunks)) {
-            // Use existing upload logic to send the merged file to Telegram
-            String fileID = uploadFile(mergedStream, filename, totalSize);
+    public UploadFile mergeFile(String identifier, String filename, int totalChunks, long totalSize, HttpServletRequest request, Long userId) throws IOException {
+        try {
+            // Get all uploaded chunk file IDs
+            List<String> chunkFileIds = chunkStorageService.getChunkFileIds(identifier);
+            
+            if (chunkFileIds.size() != totalChunks) {
+                throw new RuntimeException("Missing chunks. Expected: " + totalChunks + ", Actual: " + chunkFileIds.size());
+            }
 
-            // Clean up the temporary chunks
+            // Create BigFileInfo record
+            BigFileInfo bigFileInfo = new BigFileInfo();
+            bigFileInfo.setFileName(filename);
+            bigFileInfo.setFileSize(totalSize);
+            bigFileInfo.setFileIds(chunkFileIds);
+            bigFileInfo.setRecordFile(true);
+
+            // Create record file and upload to Telegram
+            String recordFileId = createRecordFile(filename, totalSize, chunkFileIds);
+
+            // Clean up the temporary chunks from database
             chunkStorageService.cleanupChunks(identifier);
 
             // Send completion message via WebSocket
@@ -371,11 +385,11 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             // Construct download URL
             String prefix = StringUtil.getPrefix(request);
-            String downloadUrl = prefix + "/d/" + fileID;
+            String downloadUrl = prefix + "/d/" + recordFileId;
 
             // Save file info to the database
             FileInfo fileInfo = FileInfo.builder()
-                    .fileId(fileID)
+                    .fileId(recordFileId)
                     .size(UserFriendly.humanReadableFileSize(totalSize))
                     .fullSize(totalSize)
                     .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
@@ -390,14 +404,14 @@ public class FileStorageServiceImpl implements FileStorageService {
             UploadFile uploadFile = new UploadFile();
             uploadFile.setFileName(filename);
             uploadFile.setDownloadLink(downloadUrl);
-            uploadFile.setFileId(fileID);
+            uploadFile.setFileId(recordFileId);
             return uploadFile;
 
         } catch (IOException e) {
-            log.error("Failed to merge and upload file for identifier: {}", identifier, e);
+            log.error("Failed to create record file for identifier: {}", identifier, e);
             // Also cleanup chunks in case of failure
             chunkStorageService.cleanupChunks(identifier);
-            throw new RuntimeException("Failed to merge and upload file", e);
+            throw new RuntimeException("Failed to create record file", e);
         }
     }
 

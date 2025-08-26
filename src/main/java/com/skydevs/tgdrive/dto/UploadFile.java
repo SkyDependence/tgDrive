@@ -9,4 +9,5 @@ import lombok.*;
 public class UploadFile {
     private String fileName;
     private String downloadLink;
+    private String fileId;
 }

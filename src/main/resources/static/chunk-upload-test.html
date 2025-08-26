@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background-color: #f9f9f9;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
+        .chunk-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .chunk-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .chunk-item.completed {
+            background-color: #dff0d8;
+            border-color: #d6e9c6;
+        }
+        .chunk-item.uploading {
+            background-color: #d9edf7;
+            border-color: #bce8f1;
+        }
+        .chunk-item.error {
+            background-color: #f2dede;
+            border-color: #ebccd1;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button.primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        button.danger {
+            background-color: #f44336;
+            color: white;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .info {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chunk Upload Test</h1>
+    
+    <div class="upload-area" id="uploadArea">
+        <p>Drag and drop a file here or click to select</p>
+        <input type="file" id="fileInput" style="display: none;">
+    </div>
+    
+    <div class="info" id="fileInfo" style="display: none;">
+        <p><strong>File:</strong> <span id="fileName"></span></p>
+        <p><strong>Size:</strong> <span id="fileSize"></span></p>
+        <p><strong>Chunks:</strong> <span id="totalChunks"></span></p>
+        <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
+    </div>
+    
+    <div class="progress" id="progressContainer" style="display: none;">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    
+    <div id="progressText" style="display: none;">
+        <p>Progress: <span id="progressPercent">0</span>%</p>
+        <p>Uploaded: <span id="uploadedSize">0</span> / <span id="totalSize">0</span></p>
+    </div>
+    
+    <div class="chunk-list" id="chunkList"></div>
+    
+    <div id="actions" style="display: none;">
+        <button class="primary" id="startBtn" onclick="startUpload()">Start Upload</button>
+        <button class="danger" id="pauseBtn" onclick="pauseUpload()" style="display: none;">Pause</button>
+        <button id="resetBtn" onclick="resetUpload()">Reset</button>
+    </div>
+    
+    <div id="log" style="margin-top: 20px; padding: 10px; background-color: #f9f9f9; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+
+    <script>
+        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+        let currentFile = null;
+        let sessionId = null;
+        let chunkList = [];
+        let uploadedChunks = new Set();
+        let isUploading = false;
+        let isPaused = false;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const actions = document.getElementById('actions');
+        const log = document.getElementById('log');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+        
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+        
+        async function handleFile(file) {
+            currentFile = file;
+            resetUpload();
+            
+            // Initialize upload session
+            try {
+                const response = await fetch('/api/test/chunk/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `filename=${encodeURIComponent(file.name)}&totalSize=${file.size}`
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    sessionId = result.data.identifier;
+                    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                    
+                    // Update UI
+                    document.getElementById('fileName').textContent = file.name;
+                    document.getElementById('fileSize').textContent = formatSize(file.size);
+                    document.getElementById('totalChunks').textContent = totalChunks;
+                    document.getElementById('sessionId').textContent = sessionId;
+                    
+                    fileInfo.style.display = 'block';
+                    actions.style.display = 'block';
+                    
+                    // Initialize chunk list
+                    initializeChunkList(totalChunks);
+                    
+                    // Check existing chunks
+                    await checkExistingChunks();
+                    
+                    logMessage('Upload session initialized');
+                } else {
+                    logMessage('Failed to initialize upload session: ' + result.message);
+                }
+            } catch (error) {
+                logMessage('Error initializing upload session: ' + error.message);
+            }
+        }
+        
+        function initializeChunkList(totalChunks) {
+            chunkList = [];
+            const chunkListEl = document.getElementById('chunkList');
+            chunkListEl.innerHTML = '';
+            
+            for (let i = 1; i <= totalChunks; i++) {
+                chunkList.push({
+                    number: i,
+                    status: 'pending'
+                });
+                
+                const chunkEl = document.createElement('div');
+                chunkEl.className = 'chunk-item';
+                chunkEl.id = `chunk-${i}`;
+                chunkEl.innerHTML = `Chunk ${i}`;
+                chunkListEl.appendChild(chunkEl);
+            }
+        }
+        
+        async function checkExistingChunks() {
+            try {
+                const response = await fetch(`/api/test/chunk/${sessionId}/chunks`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    uploadedChunks = new Set(result.data);
+                    result.data.forEach(chunkNum => {
+                        updateChunkStatus(chunkNum, 'completed');
+                    });
+                    updateProgress();
+                    logMessage(`Found ${result.data.length} existing chunks`);
+                }
+            } catch (error) {
+                logMessage('Error checking existing chunks: ' + error.message);
+            }
+        }
+        
+        async function startUpload() {
+            if (!currentFile || isUploading) return;
+            
+            isUploading = true;
+            isPaused = false;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            logMessage('Starting upload...');
+            
+            // Upload chunks
+            for (let i = 1; i <= chunkList.length; i++) {
+                if (!isUploading || isPaused) break;
+                
+                if (!uploadedChunks.has(i)) {
+                    await uploadChunk(i);
+                }
+            }
+            
+            // Complete upload
+            if (isUploading && !isPaused && uploadedChunks.size === chunkList.length) {
+                await completeUpload();
+            }
+        }
+        
+        async function uploadChunk(chunkNumber) {
+            updateChunkStatus(chunkNumber, 'uploading');
+            
+            const start = (chunkNumber - 1) * CHUNK_SIZE;
+            const end = Math.min(currentFile.size, start + CHUNK_SIZE);
+            const chunk = currentFile.slice(start, end);
+            
+            const formData = new FormData();
+            formData.append('file', chunk);
+            formData.append('filename', `${currentFile.name}.part${chunkNumber}`);
+            
+            try {
+                const response = await fetch(`/api/test/chunk/${sessionId}/${chunkNumber}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    uploadedChunks.add(chunkNumber);
+                    updateChunkStatus(chunkNumber, 'completed');
+                    updateProgress();
+                    logMessage(`Chunk ${chunkNumber} uploaded successfully`);
+                } else {
+                    updateChunkStatus(chunkNumber, 'error');
+                    logMessage(`Failed to upload chunk ${chunkNumber}: ${result.message}`);
+                }
+            } catch (error) {
+                updateChunkStatus(chunkNumber, 'error');
+                logMessage(`Error uploading chunk ${chunkNumber}: ${error.message}`);
+            }
+        }
+        
+        async function completeUpload() {
+            try {
+                const response = await fetch(`/api/test/chunk/${sessionId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `filename=${encodeURIComponent(currentFile.name)}&totalChunks=${chunkList.length}&totalSize=${currentFile.size}`
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    logMessage('Upload completed successfully!');
+                    isUploading = false;
+                    document.getElementById('pauseBtn').style.display = 'none';
+                } else {
+                    logMessage('Failed to complete upload: ' + result.message);
+                }
+            } catch (error) {
+                logMessage('Error completing upload: ' + error.message);
+            }
+        }
+        
+        function pauseUpload() {
+            isPaused = true;
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'inline-block';
+            logMessage('Upload paused');
+        }
+        
+        function resetUpload() {
+            currentFile = null;
+            sessionId = null;
+            chunkList = [];
+            uploadedChunks.clear();
+            isUploading = false;
+            isPaused = false;
+            
+            fileInfo.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressText.style.display = 'none';
+            actions.style.display = 'none';
+            document.getElementById('chunkList').innerHTML = '';
+            
+            if (fileInput) fileInput.value = '';
+        }
+        
+        function updateChunkStatus(chunkNumber, status) {
+            const chunkEl = document.getElementById(`chunk-${chunkNumber}`);
+            if (chunkEl) {
+                chunkEl.className = `chunk-item ${status}`;
+            }
+        }
+        
+        function updateProgress() {
+            const progress = (uploadedChunks.size / chunkList.length) * 100;
+            progressBar.style.width = progress + '%';
+            document.getElementById('progressPercent').textContent = Math.round(progress);
+            document.getElementById('uploadedSize').textContent = formatSize(uploadedChunks.size * CHUNK_SIZE);
+            document.getElementById('totalSize').textContent = formatSize(currentFile.size);
+            
+            if (uploadedChunks.size > 0) {
+                progressContainer.style.display = 'block';
+                progressText.style.display = 'block';
+            }
+        }
+        
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function logMessage(message) {
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${time}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+    </script>
+</body>
+</html>
