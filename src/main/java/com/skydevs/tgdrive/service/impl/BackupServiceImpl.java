@@ -17,7 +17,7 @@ import java.nio.file.StandardCopyOption;
 @RequiredArgsConstructor
 public class BackupServiceImpl implements BackupService {
 
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
     private static final String BACKEND_DB_PATH = "jdbc:sqlite:db/tgDrive.db"; // 后端数据库路径
     private static final String BACKUP_DB_PATH = "db/tgdrive_backup.db"; // 备份路径
 
