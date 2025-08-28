@@ -36,7 +36,7 @@
     </appender>
 
     <!-- 设置日志级别，控制哪些日志会被记录 -->
-    <logger name="com.example" level="info"/>
+    <logger name="com.skydevs" level="info"/>
 
     <!-- 全局日志级别 -->
     <root level="info">
