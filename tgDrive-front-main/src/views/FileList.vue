@@ -326,7 +326,7 @@ const fallbackCopyTextToClipboard = (text: string, message: string) => {
 };
 
 const batchCopyMarkdown = () => {
-  const text = selectedFiles.value.map(f => `[${f.fileName}](${f.downloadUrl})`).join('\n');
+  const text = selectedFiles.value.map(f => `![${f.fileName}](${f.downloadUrl})`).join('\n');
   copyToClipboard(text, `已批量复制 ${selectedFiles.value.length} 个 Markdown 链接`);
 };
 
@@ -433,7 +433,7 @@ const handleSizeChange = (size: number) => {
 };
 
 const copyMarkdown = (row: FileItem) => {
-  copyToClipboard(`[${row.fileName}](${row.downloadUrl})`, 'Markdown 格式已复制');
+  copyToClipboard(`![${row.fileName}](${row.downloadUrl})`, 'Markdown 格式已复制');
 };
 
 const copyLink = (row: FileItem) => {

@@ -258,12 +258,12 @@ const goToFileList = () => router.push('/fileList');
 const copyToClipboard = (text: string, message: string) => {
   navigator.clipboard.writeText(text).then(() => ElMessage.success(message));
 };
-const copyMarkdown = (file: UploadedFile) => copyToClipboard(`[${file.fileName}](${file.downloadLink})`, 'Markdown 格式已复制');
+const copyMarkdown = (file: UploadedFile) => copyToClipboard(`![${file.fileName}](${file.downloadLink})`, 'Markdown 格式已复制');
 const copyLink = (file: UploadedFile) => copyToClipboard(file.downloadLink, '下载链接已复制');
 const openLink = (url: string) => window.open(url, '_blank');
 
 const batchCopyMarkdown = () => {
-  const text = uploadedFiles.value.map(f => `[${f.fileName}](${f.downloadLink})`).join('\n');
+  const text = uploadedFiles.value.map(f => `![${f.fileName}](${f.downloadLink})`).join('\n');
   copyToClipboard(text, `已批量复制 ${uploadedFiles.value.length} 个 Markdown 链接`);
 };
 
