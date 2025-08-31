@@ -12,6 +12,7 @@ public class FileInfo {
     private String size;
     private Long fullSize;
     private String fileId;
+    private Integer messageId;
 
     // 用于存储上传时间的 UNIX 时间戳
     private Long uploadTime;
