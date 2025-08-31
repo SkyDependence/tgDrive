@@ -54,10 +54,40 @@ public class WebDavServiceImpl implements WebDavService {
             case "COPY":
                 handleCopy(request, response, realURI);
                 break;
+            case "PROPPATCH":
+                handlePropPatch(request, response, realURI);
+                break;
             default:
                 response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Unsupported WebDAV method");
                 break;
         }
+    }
+
+    /**
+     * 处理PROPPATCH请求，用于修改文件属性（如修改时间）
+     * 我们的服务器实际上不支持修改，但为了兼容客户端，我们假装成功。
+     * @param request
+     * @param response
+     * @param realURI
+     * @throws IOException
+     */
+    private void handlePropPatch(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
+        // 哼喵，我们其实什么都不用做，只要礼貌地回复一个成功就行了！
+        response.setStatus(207); // 207 Multi-Status
+        response.setContentType("application/xml;charset=UTF-8");
+
+        // 构建一个最简单的“成功”XML回复
+        String xmlResponse = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                "<D:multistatus xmlns:D=\"DAV:\">" +
+                "  <D:response>" +
+                "    <D:href>" + escapeXml("/webdav" + realURI) + "</D:href>" +
+                "    <D:propstat>" +
+                "      <D:status>HTTP/1.1 200 OK</D:status>" +
+                "    </D:propstat>" +
+                "  </D:response>" +
+                "</D:multistatus>";
+
+        response.getWriter().write(xmlResponse);
     }
 
     /**
@@ -229,7 +259,22 @@ public class WebDavServiceImpl implements WebDavService {
             DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
 
     private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
+
+        // 假设 path.equals("/") 总是存在的
+        if (!realURI.equals("/") && !realURI.endsWith("/")) {
+            // 这是一个对具体文件的PROPFIND请求
+            FileInfo requestedFile = fileMapper.getFileByWebdavPath(realURI);
+            if (requestedFile == null) {
+                // 如果数据库里根本找不到这个文件，就必须返回 404！
+                log.info("PROPFIND请求的文件不存在: {}", realURI);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+        }
+
         try {
+            final String CONTEXT_PATH = "/webdav";
+
             response.setStatus(207); // 207 Multi-Status
             response.setContentType("application/xml;charset=UTF-8");
 
@@ -240,57 +285,58 @@ public class WebDavServiceImpl implements WebDavService {
 
             List<FileInfo> files = webDavFileService.listFiles(path);
 
-        StringBuilder xmlBuilder = new StringBuilder();
-        xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-                .append("<D:multistatus xmlns:D=\"DAV:\">\n");
+            StringBuilder xmlBuilder = new StringBuilder();
+            xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+                    .append("<D:multistatus xmlns:D=\"DAV:\">\n");
 
-        // 添加当前目录(如果AList会去读取根目录的属性，建议用collection)
-        xmlBuilder.append("<D:response>\n")
-                .append("<D:href>").append(escapeXml(path)).append("</D:href>\n")
-                .append("<D:propstat>\n")
-                .append("<D:prop>\n")
-                .append("<D:displayname>").append(escapeXml(getDisplayName(path))).append("</D:displayname>\n")
-                .append("<D:getlastmodified>").append(RFC1123_FORMATTER.format(Instant.now())).append("</D:getlastmodified>\n")
-                .append("<D:resourcetype><D:collection/></D:resourcetype>\n")
-                .append("</D:prop>\n")
-                .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
-                .append("</D:propstat>\n")
-                .append("</D:response>\n");
-
-        // 遍历子项
-        for (FileInfo file : files) {
-            String fileName = file.getFileName();
-            boolean isDir = file.isDir();// 需要你在后台区分文件/文件夹
-            long size = file.getFullSize();
-            long modifiedTime = file.getUploadTime();// 单位: 秒或毫秒，请注意一致性
-
-            // 构造子项路径
-            String filePath = path.endsWith("/") ? path + fileName : path + "/" + fileName;
-            Instant modifiedInstant = Instant.ofEpochSecond(modifiedTime); // 如果是毫秒级就 ofEpochMilli
-            String lastModifiedStr = RFC1123_FORMATTER.format(modifiedInstant);
-
+            String currentHref = path.equals("/") ? CONTEXT_PATH : CONTEXT_PATH + path;
             xmlBuilder.append("<D:response>\n")
-                    .append("<D:href>").append(escapeXml(filePath)).append("</D:href>\n")
+                    .append("<D:href>").append(escapeXml(currentHref)).append("</D:href>\n")
                     .append("<D:propstat>\n")
                     .append("<D:prop>\n")
-                    .append("<D:displayname>").append(escapeXml(fileName)).append("</D:displayname>\n")
-                    .append("<D:getlastmodified>").append(lastModifiedStr).append("</D:getlastmodified>\n");
-
-            if (isDir) {
-                // 文件夹
-                xmlBuilder.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
-            } else {
-                // 普通文件
-                xmlBuilder.append("<D:resourcetype/>\n");
-                xmlBuilder.append("<D:getcontentlength>").append(size).append("</D:getcontentlength>\n");
-                // 可选: xmlBuilder.append("<D:getcontenttype>image/png</D:getcontenttype>\n");
-            }
-
-            xmlBuilder.append("</D:prop>\n")
+                    .append("<D:displayname>").append(escapeXml(path.equals("/") ? "" : getDisplayName(path))).append("</D:displayname>\n")
+                    .append("<D:getlastmodified>").append(RFC1123_FORMATTER.format(Instant.now())).append("</D:getlastmodified>\n")
+                    .append("<D:resourcetype><D:collection/></D:resourcetype>\n")
+                    .append("</D:prop>\n")
                     .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
                     .append("</D:propstat>\n")
                     .append("</D:response>\n");
-        }
+
+            // 遍历子项
+            for (FileInfo file : files) {
+                String fileName = file.getFileName();
+                boolean isDir = file.isDir();
+                long size = file.getFullSize();
+                long modifiedTime = file.getUploadTime();
+
+                // 構造子項的相對路徑
+                String relativeFilePath = path.endsWith("/") ? path + fileName : path + "/" + fileName;
+
+                // ★★★ Neko醬的修改點 ② ★★★
+                // 為每個子項生成正確的、帶有前綴的href
+                String fileHref = CONTEXT_PATH + relativeFilePath;
+                Instant modifiedInstant = Instant.ofEpochSecond(modifiedTime);
+                String lastModifiedStr = RFC1123_FORMATTER.format(modifiedInstant);
+
+                xmlBuilder.append("<D:response>\n")
+                        .append("<D:href>").append(escapeXml(fileHref)).append("</D:href>\n") // 使用修正後的路徑
+                        .append("<D:propstat>\n")
+                        .append("<D:prop>\n")
+                        .append("<D:displayname>").append(escapeXml(fileName)).append("</D:displayname>\n")
+                        .append("<D:getlastmodified>").append(lastModifiedStr).append("</D:getlastmodified>\n");
+
+                if (isDir) {
+                    xmlBuilder.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
+                } else {
+                    xmlBuilder.append("<D:resourcetype/>\n");
+                    xmlBuilder.append("<D:getcontentlength>").append(size).append("</D:getcontentlength>\n");
+                }
+
+                xmlBuilder.append("</D:prop>\n")
+                        .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
+                        .append("</D:propstat>\n")
+                        .append("</D:response>\n");
+            }
 
             xmlBuilder.append("</D:multistatus>");
             response.getWriter().write(xmlBuilder.toString());

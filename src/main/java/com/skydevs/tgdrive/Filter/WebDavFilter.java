@@ -23,7 +23,8 @@ public class WebDavFilter implements Filter {
         if ("PROPFIND".equalsIgnoreCase(method)
         || "MKCOL".equalsIgnoreCase(method)
         || "MOVE".equalsIgnoreCase(method)
-        || "COPY".equalsIgnoreCase(method)) {
+        || "COPY".equalsIgnoreCase(method)
+        || "PROPPATCH".equalsIgnoreCase(method)) {
             log.info("拦截到WebDAV请求: {}", method);
 
             // 把原始方法放到attribute
