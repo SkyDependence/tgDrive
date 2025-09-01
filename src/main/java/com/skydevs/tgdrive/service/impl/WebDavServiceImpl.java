@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -258,68 +257,76 @@ public class WebDavServiceImpl implements WebDavService {
     private static final DateTimeFormatter RFC1123_FORMATTER =
             DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
 
-    private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
+    // WebDavServiceImpl.java
 
-        // 假设 path.equals("/") 总是存在的
-        if (!realURI.equals("/") && !realURI.endsWith("/")) {
-            // 这是一个对具体文件的PROPFIND请求
-            FileInfo requestedFile = fileMapper.getFileByWebdavPath(realURI);
-            if (requestedFile == null) {
-                // 如果数据库里根本找不到这个文件，就必须返回 404！
-                log.info("PROPFIND请求的文件不存在: {}", realURI);
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-                return;
-            }
+    private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
+        // 步骤1：存在性检查
+        // 客户端可能会请求一个不存在的路径，我们必须先告诉它“找不到”
+        FileInfo currentItem = fileMapper.getFileByWebdavPath(realURI);
+        if (!realURI.equals("/") && currentItem == null) {
+            log.info("PROPFIND请求的资源不存在: {}", realURI);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
         }
 
         try {
             final String CONTEXT_PATH = "/webdav";
-
             response.setStatus(207); // 207 Multi-Status
             response.setContentType("application/xml;charset=UTF-8");
 
-            String path = realURI;
-            if (!StringUtils.hasText(path) || path.equals("/")) {
-                path = "/";
+            // 如果当前是文件夹，就去获取它下面的子文件；如果是文件，这个列表就是空的
+            List<FileInfo> childFiles;
+            if (realURI.equals("/") || (currentItem != null && currentItem.isDir())) {
+                childFiles = webDavFileService.listFiles(realURI);
+            } else {
+                childFiles = java.util.Collections.emptyList(); // 如果是文件，就没有子项
             }
-
-            List<FileInfo> files = webDavFileService.listFiles(path);
 
             StringBuilder xmlBuilder = new StringBuilder();
             xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                     .append("<D:multistatus xmlns:D=\"DAV:\">\n");
 
-            String currentHref = path.equals("/") ? CONTEXT_PATH : CONTEXT_PATH + path;
+            String currentHref = CONTEXT_PATH + realURI;
             xmlBuilder.append("<D:response>\n")
                     .append("<D:href>").append(escapeXml(currentHref)).append("</D:href>\n")
                     .append("<D:propstat>\n")
                     .append("<D:prop>\n")
-                    .append("<D:displayname>").append(escapeXml(path.equals("/") ? "" : getDisplayName(path))).append("</D:displayname>\n")
-                    .append("<D:getlastmodified>").append(RFC1123_FORMATTER.format(Instant.now())).append("</D:getlastmodified>\n")
-                    .append("<D:resourcetype><D:collection/></D:resourcetype>\n")
-                    .append("</D:prop>\n")
+                    .append("<D:displayname>").append(escapeXml(getDisplayName(realURI))).append("</D:displayname>\n");
+
+            // 如果是根目录，或者是一个存在的对象，我们才添加更多属性
+            if (realURI.equals("/") || currentItem != null) {
+                long modifiedTime = realURI.equals("/") ? Instant.now().getEpochSecond() : currentItem.getUploadTime();
+                String lastModifiedStr = RFC1123_FORMATTER.format(Instant.ofEpochSecond(modifiedTime));
+                xmlBuilder.append("<D:getlastmodified>").append(lastModifiedStr).append("</D:getlastmodified>\n");
+
+                // 根据它是文件还是文件夹，返回正确的 resourcetype！
+                if (realURI.equals("/") || currentItem.isDir()) {
+                    xmlBuilder.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
+                } else {
+                    xmlBuilder.append("<D:resourcetype/>\n");
+                    xmlBuilder.append("<D:getcontentlength>").append(currentItem.getFullSize()).append("</D:getcontentlength>\n");
+                }
+            }
+
+            xmlBuilder.append("</D:prop>\n")
                     .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
                     .append("</D:propstat>\n")
                     .append("</D:response>\n");
 
-            // 遍历子项
-            for (FileInfo file : files) {
+            // 遍历子文件列表，为每个子项构建回复
+            for (FileInfo file : childFiles) {
                 String fileName = file.getFileName();
                 boolean isDir = file.isDir();
                 long size = file.getFullSize();
                 long modifiedTime = file.getUploadTime();
 
-                // 構造子項的相對路徑
-                String relativeFilePath = path.endsWith("/") ? path + fileName : path + "/" + fileName;
-
-                // ★★★ Neko醬的修改點 ② ★★★
-                // 為每個子項生成正確的、帶有前綴的href
+                // 构造子项的相对路径
+                String relativeFilePath = realURI.endsWith("/") ? realURI + fileName : realURI + "/" + fileName;
                 String fileHref = CONTEXT_PATH + relativeFilePath;
-                Instant modifiedInstant = Instant.ofEpochSecond(modifiedTime);
-                String lastModifiedStr = RFC1123_FORMATTER.format(modifiedInstant);
+                String lastModifiedStr = RFC1123_FORMATTER.format(Instant.ofEpochSecond(modifiedTime));
 
                 xmlBuilder.append("<D:response>\n")
-                        .append("<D:href>").append(escapeXml(fileHref)).append("</D:href>\n") // 使用修正後的路徑
+                        .append("<D:href>").append(escapeXml(fileHref)).append("</D:href>\n")
                         .append("<D:propstat>\n")
                         .append("<D:prop>\n")
                         .append("<D:displayname>").append(escapeXml(fileName)).append("</D:displayname>\n")
