@@ -65,7 +65,6 @@
             </div>
           </div>
           
-          <!-- 原始作者 -->
           <div class="author-card original-author">
             <div class="author-avatar">
               <img src="/110871356.jpg" alt="SkyDev" class="avatar-img" />
@@ -75,7 +74,7 @@
                 SkyDev
                 <el-tag type="warning" size="small" class="author-tag">本项目开创者</el-tag>
               </h3>
-              <p class="author-description">tgDrive 项目的原始作者和开创者，为我们提供了优秀的基础框架</p>
+              <p class="author-description">tgDrive 项目的原始作者和开创者，提供了优秀的基础框架</p>
               <div class="author-links">
                 <el-tag type="info" size="small" @click="openLink('https://github.com/SkyDependence')" class="clickable-tag">
                   <el-icon><Link /></el-icon>
@@ -83,13 +82,12 @@
                 </el-tag>
                 <el-tag type="primary" size="small" @click="openLink('https://github.com/SkyDependence/tgDrive')" class="clickable-tag">
                   <el-icon><Link /></el-icon>
-                  原始项目地址
+                  项目地址
                 </el-tag>
               </div>
             </div>
           </div>
           
-          <!-- 当前维护者 -->
           <div class="author-card current-contributor">
             <div class="author-avatar">
               <img src="/favicon.ico" alt="Stanley-DEV" class="avatar-img" />
@@ -97,7 +95,7 @@
             <div class="author-details">
               <h3 class="author-name">
                 Stanley-DEV
-                <el-tag type="success" size="small" class="author-tag">当前贡献者</el-tag>
+                <el-tag type="success" size="small" class="author-tag">贡献者</el-tag>
               </h3>
               <p class="author-description">负责项目优化和维护，改进文件管理、上传体验等功能</p>
               <div class="author-links">
@@ -108,6 +106,24 @@
                 <el-tag type="primary" size="small" @click="openLink('https://me.lixvyao.com')" class="clickable-tag">
                   <el-icon><Link /></el-icon>
                   ST个人主页
+                </el-tag>
+              </div>
+            </div>
+          </div>
+          <div class="author-card current-contributor">
+            <div class="author-avatar">
+              <img src="https://avatars.githubusercontent.com/u/117806849?v=4" alt="wenzhuo4657" class="avatar-img" />
+            </div>
+            <div class="author-details">
+              <h3 class="author-name">
+                wenzhuo4657
+                <el-tag type="success" size="small" class="author-tag">贡献者</el-tag>
+              </h3>
+              <p class="author-description">修复了数据库文件的创建顺序</p>
+              <div class="author-links">
+                <el-tag type="info" size="small" @click="openLink('https://github.com/wenzhuo4657')" class="clickable-tag">
+                  <el-icon><Link /></el-icon>
+                  GitHub: wenzhuo4657
                 </el-tag>
               </div>
             </div>

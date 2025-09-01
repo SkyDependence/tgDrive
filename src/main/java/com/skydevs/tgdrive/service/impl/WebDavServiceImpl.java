@@ -64,12 +64,15 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
+     * Description:
      * 处理PROPPATCH请求，用于修改文件属性（如修改时间）
      * 我们的服务器实际上不支持修改，但为了兼容客户端，我们假装成功。
-     * @param request
-     * @param response
-     * @param realURI
-     * @throws IOException
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request WebDAV请求
+     * @param response WebDAV响应
+     * @param realURI 请求路径
+     * @throws IOException IO异常
      */
     private void handlePropPatch(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
         // 哼喵，我们其实什么都不用做，只要礼貌地回复一个成功就行了！
@@ -91,10 +94,13 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
+     * Description:
      * WebDAV文件移动
-     * @param request
-     * @param response
-     * @param realURI
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request WebDAV请求
+     * @param response WebDAV响应
+     * @param realURI 请求路径
      */
     private void handleMove(HttpServletRequest request, HttpServletResponse response, String realURI) {
         String target = request.getHeader("Destination");
@@ -132,6 +138,14 @@ public class WebDavServiceImpl implements WebDavService {
         }
     }
 
+    /**
+     * Description:
+     * 获取指定路径下的所有子文件
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param realURI 文件路径
+     * @return 子文件列表
+     */
     private List<FileInfo> getSubFiles(String realURI) {
         List<FileInfo> files =  fileMapper.getFilesByPathPrefix(realURI);
         files.removeIf(file -> file.getWebdavPath().equals(realURI));
@@ -139,10 +153,13 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
+     * Description:
      * 移动子文件
-     * @param subFiles
-     * @param target
-     * @param realURI
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param subFiles 子文件列表
+     * @param target 目标路径
+     * @param realURI 源路径
      */
     private void handleMoveSubFiles(List<FileInfo> subFiles, String target, String realURI) {
         if (subFiles == null) {
@@ -166,10 +183,13 @@ public class WebDavServiceImpl implements WebDavService {
 
 
     /**
+     * Description:
      * 处理新建文件夹
-     * @param request
-     * @param response
-     * @param realURI
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request WebDAV请求
+     * @param response WebDAV响应
+     * @param realURI 请求路径
      */
     private void handleMkCol(HttpServletRequest request, HttpServletResponse response, String realURI) {
         FileInfo fileInfo = getFileByWebdavPathWithFallback(realURI);
@@ -192,9 +212,13 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
+     * Description:
      * 处理文件复制
-     * @param request
-     * @param response
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request WebDAV请求
+     * @param response WebDAV响应
+     * @param realURI 请求路径
      */
     private void handleCopy(HttpServletRequest request, HttpServletResponse response, String realURI) {
         String target = request.getHeader("Destination");
@@ -230,6 +254,15 @@ public class WebDavServiceImpl implements WebDavService {
         }
     }
 
+    /**
+     * Description:
+     * 复制子文件
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param subFiles 子文件列表
+     * @param target 目标路径
+     * @param realURI 源路径
+     */
     private void handleCopySubFiles(List<FileInfo> subFiles, String target, String realURI) {
         if (subFiles == null) {
             return;
@@ -249,17 +282,20 @@ public class WebDavServiceImpl implements WebDavService {
         log.info("子文件复制完成");
     }
 
-    /**
-     * 处理目录探测
-     * @param request
-     * @param response
-     * @throws IOException
-     */
+
     private static final DateTimeFormatter RFC1123_FORMATTER =
             DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
 
-    // WebDavServiceImpl.java
-
+    /**
+     * Description:
+     * 处理目录探测
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request WebDAV请求
+     * @param response WebDAV响应
+     * @param realURI 请求路径
+     * @throws IOException IO异常
+     */
     private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
         // 步骤1：存在性检查
         // 客户端可能会请求一个不存在的路径，我们必须先告诉它"找不到"
@@ -277,7 +313,7 @@ public class WebDavServiceImpl implements WebDavService {
 
             // 如果当前是文件夹，就去获取它下面的子文件；如果是文件，这个列表就是空的
             List<FileInfo> childFiles;
-            if (realURI.equals("/") || (currentItem != null && currentItem.isDir())) {
+            if (realURI.equals("/") || (currentItem.isDir())) {
                 childFiles = webDavFileService.listFiles(realURI);
             } else {
                 childFiles = java.util.Collections.emptyList(); // 如果是文件，就没有子项
@@ -355,7 +391,12 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
+     * Description:
      * XML转义方法
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param input 输入字符串
+     * @return 转义后的字符串
      */
     private String escapeXml(String input) {
         if (input == null) {
@@ -368,10 +409,28 @@ public class WebDavServiceImpl implements WebDavService {
                    .replace("'", "&#39;");
     }
 
+    /**
+     * Description:
+     * 获取显示名称
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param path 路径
+     * @return 显示名称
+     */
     private String getDisplayName(String path) {
         return path.substring(path.lastIndexOf('/'));
     }
 
+    /**
+     * Description:
+     * 获取目标路径
+     * @author SkyDev
+     * @date 2025-09-01 10:00:00
+     * @param request HTTP请求
+     * @param target 目标路径
+     * @param dir 是否为目录
+     * @return 处理后的目标路径
+     */
     private String getTargetPath(HttpServletRequest request, String target, boolean dir) {
         String prefix = StringUtil.getPrefix(request);
         target =  target.substring((prefix + "/webdav").length());
