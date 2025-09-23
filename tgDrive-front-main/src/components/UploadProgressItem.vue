@@ -6,10 +6,10 @@
     </div>
     <el-progress
       :percentage="totalPercentage"
-      :status="status"
+      :status="progressStatus"
       :stroke-width="10"
-      striped
-      :striped-flow="status === 'uploading'"
+      :striped="isInProgress"
+      :striped-flow="isInProgress"
       class="unified-progress-bar"
     />
     <div class="progress-info-text">
@@ -74,7 +74,7 @@ const totalPercentage = computed(() => {
   return 0;
 });
 
-const status = computed(() => {
+const progressStatus = computed(() => {
   const item = props.item;
   if (item.client.status === 'exception' || item.server.status === 'exception') {
     return 'exception';
@@ -82,7 +82,14 @@ const status = computed(() => {
   if (item.server.status === 'success') {
     return 'success';
   }
-  return 'uploading'; // Default for in-progress
+  return '';
+});
+
+const isInProgress = computed(() => {
+  const item = props.item;
+  if (item.client.status === 'exception' || item.server.status === 'exception') return false;
+  if (item.server.status === 'success') return false;
+  return true;
 });
 
 const stageText = computed(() => {

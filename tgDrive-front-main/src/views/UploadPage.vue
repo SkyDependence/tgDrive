@@ -158,6 +158,7 @@ const reconnectAttempts = ref(0);
 const maxReconnectAttempts = 10;
 const reconnectDelay = ref(1000); // 初始重连延迟 1 秒
 const isPageVisible = ref(true);
+const CONCURRENCY_LIMIT = 3;
 
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
@@ -189,13 +190,21 @@ const handleUpload = async () => {
     server: { percentage: 0, currentChunk: 0, totalChunks: 0, status: 'waiting' },
   }));
 
-  for (const file of selectedFiles.value) {
-    const progressItem = uploadProgress.value.find(p => p.uid === file.uid);
-    if (!progressItem) continue;
+  const queue = [...selectedFiles.value];
+
+  const runNext = async (): Promise<void> => {
+    const nextFile = queue.shift();
+    if (!nextFile) return;
+
+    const progressItem = uploadProgress.value.find(p => p.uid === nextFile.uid);
+    if (!progressItem) {
+      await runNext();
+      return;
+    }
 
     try {
       const formData = new FormData();
-      formData.append('file', file.raw as File);
+      formData.append('file', nextFile.raw as File);
 
       const response = await request.post('/upload', formData, {
         timeout: 21600000,
@@ -217,17 +226,30 @@ const handleUpload = async () => {
     } catch (error: any) {
       if (error?.message === '登录状态已过期，请重新登录') {
         progressItem.client.status = 'exception';
-        isUploading.value = false;
-        return;
+        throw error;
       }
       progressItem.client.status = 'exception';
-      ElMessage.error(`${file.name} 上传失败: ${error.message}`);
+      ElMessage.error(`${nextFile.name} 上传失败: ${error.message}`);
+    } finally {
+      if (queue.length > 0) {
+        await runNext();
+      }
     }
-  }
+  };
+
+  const workerCount = Math.min(CONCURRENCY_LIMIT, queue.length);
+  const workers = Array.from({ length: workerCount }, () => runNext());
+  const results = await Promise.allSettled(workers);
+
+  const hadAuthError = results.some((result) => result.status === 'rejected' && result.reason?.message === '登录状态已过期，请重新登录');
 
   isUploading.value = false;
   selectedFiles.value = [];
   uploadRef.value?.clearFiles();
+
+  if (hadAuthError) {
+    return;
+  }
 };
 
 const connectWebSocket = () => {

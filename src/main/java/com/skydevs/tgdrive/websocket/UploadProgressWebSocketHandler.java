@@ -1,27 +1,34 @@
 package com.skydevs.tgdrive.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 @Slf4j
 @Component
 public class UploadProgressWebSocketHandler implements WebSocketHandler {
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ExecutorService broadcastExecutor = Executors.newFixedThreadPool(4);
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String sessionId = session.getId();
         sessions.put(sessionId, session);
+        sessionLocks.put(sessionId, new Object());
         log.info("WebSocket连接建立: {}", sessionId);
     }
 
@@ -56,11 +63,13 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.error("WebSocket传输错误: {}", session.getId(), exception);
         sessions.remove(session.getId());
+        sessionLocks.remove(session.getId());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         sessions.remove(session.getId());
+        sessionLocks.remove(session.getId());
         log.info("WebSocket连接关闭: {}", session.getId());
     }
 
@@ -120,60 +129,45 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
     private void broadcastMessage(Object message) {
         try {
             String json = objectMapper.writeValueAsString(message);
-            sessions.values().forEach(session -> {
-                try {
-                    if (session.isOpen()) {
-                        session.sendMessage(new TextMessage(json));
-                    }
-                } catch (IOException e) {
-                    log.error("发送WebSocket消息失败", e);
-                }
-            });
+            sessions.values().forEach(session -> broadcastExecutor.execute(() -> sendMessageSafely(session, json)));
         } catch (Exception e) {
-            log.error("序列化WebSocket消息失败", e);
+            log.error("广播WebSocket消息失败", e);
+        }
+    }
+
+    private void sendMessageSafely(WebSocketSession session, String payload) {
+        Object lock = sessionLocks.getOrDefault(session.getId(), session);
+        synchronized (lock) {
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(payload));
+                }
+            } catch (IOException | IllegalStateException e) {
+                log.error("发送WebSocket消息失败，session: {}", session.getId(), e);
+            }
         }
     }
 
     // 消息类定义
+    @Data
     public static class UploadProgressMessage {
         private String type;
         private String fileName;
         private double percentage;
         private int currentChunk;
         private int totalChunks;
-
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public String getFileName() { return fileName; }
-        public void setFileName(String fileName) { this.fileName = fileName; }
-        public double getPercentage() { return percentage; }
-        public void setPercentage(double percentage) { this.percentage = percentage; }
-        public int getCurrentChunk() { return currentChunk; }
-        public void setCurrentChunk(int currentChunk) { this.currentChunk = currentChunk; }
-        public int getTotalChunks() { return totalChunks; }
-        public void setTotalChunks(int totalChunks) { this.totalChunks = totalChunks; }
     }
 
+    @Data
     public static class UploadCompleteMessage {
         private String type;
         private String fileName;
-
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public String getFileName() { return fileName; }
-        public void setFileName(String fileName) { this.fileName = fileName; }
     }
 
+    @Data
     public static class UploadErrorMessage {
         private String type;
         private String fileName;
         private String error;
-
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public String getFileName() { return fileName; }
-        public void setFileName(String fileName) { this.fileName = fileName; }
-        public String getError() { return error; }
-        public void setError(String error) { this.error = error; }
     }
 }
