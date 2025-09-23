@@ -2,11 +2,13 @@ package com.skydevs.tgdrive.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -24,10 +26,30 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
     }
 
     @Override
-    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
-        // 处理客户端发送的消息，比如注册文件上传ID
+    public void handleMessage(@NotNull WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        // 处理客户端发送的消息，比如注册文件上传ID或心跳
         String payload = message.getPayload().toString();
-        log.info("收到WebSocket消息: {}", payload);
+        log.info("收到WebSocket- {} 消息: {}",session.getId(), payload);
+
+        try {
+            // 尝试解析为JSON，处理心跳消息
+            Map<String, Object> messageMap = objectMapper.readValue(payload, Map.class);
+            String type = (String) messageMap.get("type");
+
+            if ("ping".equals(type)) {
+                // 响应心跳
+                Map<String, String> pongMessage = new HashMap<>();
+                pongMessage.put("type", "pong");
+                pongMessage.put("timestamp", String.valueOf(System.currentTimeMillis()));
+
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(pongMessage)));
+                }
+            }
+        } catch (Exception e) {
+            // 如果不是JSON格式或解析失败，记录但不中断
+            log.debug("消息非JSON格式或不需要特殊处理: {}", payload);
+        }
     }
 
     @Override

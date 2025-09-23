@@ -115,7 +115,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { ElMessage, UploadFile, UploadFiles, UploadRawFile, UploadInstance } from 'element-plus';
+import { ElMessage, UploadFile, UploadFiles, UploadInstance } from 'element-plus';
 import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
 
@@ -151,17 +151,23 @@ const uploadedFiles = ref<UploadedFile[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref<ProgressItem[]>([]);
 const websocket = ref<WebSocket | null>(null);
+const reconnectTimer = ref<number | null>(null);
+const heartbeatTimer = ref<number | null>(null);
+const reconnectAttempts = ref(0);
+const maxReconnectAttempts = 10;
+const reconnectDelay = ref(1000); // 初始重连延迟 1 秒
+const isPageVisible = ref(true);
 
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
 );
 
 // --- Methods ---
-const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
+const handleFileChange = (_file: UploadFile, fileList: UploadFiles) => {
   selectedFiles.value = fileList;
 };
 
-const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
+const handleFileRemove = (_file: UploadFile, fileList: UploadFiles) => {
   selectedFiles.value = fileList;
 };
 
@@ -219,38 +225,112 @@ const handleUpload = async () => {
 };
 
 const connectWebSocket = () => {
+  // 清理之前的连接
+  if (websocket.value) {
+    websocket.value.close();
+  }
+
+  // 清理定时器
+  if (reconnectTimer.value) {
+    clearTimeout(reconnectTimer.value);
+    reconnectTimer.value = null;
+  }
+  if (heartbeatTimer.value) {
+    clearInterval(heartbeatTimer.value);
+    heartbeatTimer.value = null;
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = `${protocol}://${window.location.host}/ws/upload-progress`;
-  websocket.value = new WebSocket(wsUrl);
 
-  websocket.value.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      const progressItem = uploadProgress.value.find(p => p.name === data.fileName);
-      if (!progressItem) return;
+  try {
+    websocket.value = new WebSocket(wsUrl);
 
-      if (data.type === 'upload_progress') {
-        progressItem.server.status = 'uploading';
-        const totalChunks = data.total_chunks || data.totalChunks;
-        const currentChunk = data.current_chunk || data.currentChunk;
-        if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
-        if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
-        if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
-      } else if (data.type === 'upload_complete') {
-        progressItem.server.status = 'success';
-        progressItem.server.percentage = 100;
-      } else if (data.type === 'upload_error') {
-        progressItem.server.status = 'exception';
-        ElMessage.error(`${data.fileName} 传输到Telegram失败: ${data.error}`);
+    websocket.value.onopen = () => {
+      console.log('WebSocket 连接已建立');
+      reconnectAttempts.value = 0;
+      reconnectDelay.value = 1000; // 重置重连延迟
+      startHeartbeat(); // 开始心跳
+    };
+
+    websocket.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // 如果是心跳响应，忽略
+        if (data.type === 'pong') {
+          return;
+        }
+
+        const progressItem = uploadProgress.value.find(p => p.name === data.fileName);
+        if (!progressItem) return;
+
+        if (data.type === 'upload_progress') {
+          progressItem.server.status = 'uploading';
+          const totalChunks = data.total_chunks || data.totalChunks;
+          const currentChunk = data.current_chunk || data.currentChunk;
+          if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
+          if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
+          if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
+        } else if (data.type === 'upload_complete') {
+          progressItem.server.status = 'success';
+          progressItem.server.percentage = 100;
+        } else if (data.type === 'upload_error') {
+          progressItem.server.status = 'exception';
+          ElMessage.error(`${data.fileName} 传输到Telegram失败: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('WebSocket message parse error:', error);
       }
-    } catch (error) {
-      console.error('WebSocket message parse error:', error);
-    }
-  };
+    };
 
-  websocket.value.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
+    websocket.value.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    websocket.value.onclose = (event) => {
+      console.log('WebSocket 连接已关闭', event);
+      stopHeartbeat();
+
+      // 只在页面可见且未达到最大重连次数时进行重连
+      if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
+        reconnectAttempts.value++;
+        console.log(`尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`);
+
+        reconnectTimer.value = window.setTimeout(() => {
+          connectWebSocket();
+        }, reconnectDelay.value);
+
+        // 使用指数退避策略，最大延迟 30 秒
+        reconnectDelay.value = Math.min(reconnectDelay.value * 2, 30000);
+      }
+    };
+  } catch (error) {
+    console.error('创建 WebSocket 连接失败:', error);
+    // 尝试重连
+    if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
+      reconnectAttempts.value++;
+      reconnectTimer.value = window.setTimeout(() => {
+        connectWebSocket();
+      }, reconnectDelay.value);
+    }
+  }
+};
+
+// 心跳机制
+const startHeartbeat = () => {
+  stopHeartbeat();
+  heartbeatTimer.value = window.setInterval(() => {
+    if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
+      websocket.value.send(JSON.stringify({ type: 'ping' }));
+    }
+  }, 30000); // 每 30 秒发送一次心跳
+};
+
+const stopHeartbeat = () => {
+  if (heartbeatTimer.value) {
+    clearInterval(heartbeatTimer.value);
+    heartbeatTimer.value = null;
+  }
 };
 
 // --- Utility and Lifecycle ---
@@ -297,11 +377,67 @@ const handlePaste = (event: ClipboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('paste', handlePaste);
+
+  // 页面可见性检测
+  const handleVisibilityChange = () => {
+    isPageVisible.value = !document.hidden;
+    if (document.hidden) {
+      console.log('页面隐藏，断开 WebSocket 连接');
+      if (websocket.value) {
+        websocket.value.close();
+      }
+      stopHeartbeat();
+    } else {
+      console.log('页面显示，重新建立 WebSocket 连接');
+      reconnectAttempts.value = 0;
+      reconnectDelay.value = 1000;
+      connectWebSocket();
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // 添加窗口焦点事件监听
+  const handleFocus = () => {
+    if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
+      console.log('窗口获得焦点，检查并重连 WebSocket');
+      reconnectAttempts.value = 0;
+      reconnectDelay.value = 1000;
+      connectWebSocket();
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+
   connectWebSocket();
+
+  // 保存事件监听器以便清理
+  (window as any).__visibilityHandler = handleVisibilityChange;
+  (window as any).__focusHandler = handleFocus;
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('paste', handlePaste);
+
+  // 清理页面可见性监听
+  if ((window as any).__visibilityHandler) {
+    document.removeEventListener('visibilitychange', (window as any).__visibilityHandler);
+    delete (window as any).__visibilityHandler;
+  }
+
+  // 清理焦点事件监听
+  if ((window as any).__focusHandler) {
+    window.removeEventListener('focus', (window as any).__focusHandler);
+    delete (window as any).__focusHandler;
+  }
+
+  // 清理定时器
+  if (reconnectTimer.value) {
+    clearTimeout(reconnectTimer.value);
+  }
+  stopHeartbeat();
+
+  // 关闭 WebSocket 连接
   if (websocket.value) {
     websocket.value.close();
   }
@@ -375,7 +511,7 @@ onBeforeUnmount(() => {
 
 .file-size-info {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 
@@ -501,7 +637,7 @@ html.dark .uploaded-file-item {
 .dual-progress-container {
   margin-top: 10px;
   padding: 15px;
-  background: var(--bg-color-light);
+  background: var(--hover-bg-color);
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
@@ -556,7 +692,7 @@ html.dark .uploaded-file-item {
 
 .chunk-info {
   font-size: 12px;
-  color: var(--text-color-light);
+  color: var(--el-text-color-regular);
   margin-top: 4px;
   text-align: center;
 }
