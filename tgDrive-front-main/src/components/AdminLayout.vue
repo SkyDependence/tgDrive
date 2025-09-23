@@ -289,6 +289,7 @@ const toggleSidebar = () => {
 const handleUserCommand = (command: string) => {
   if (command === 'logout') {
     localStorage.removeItem('token');
+    localStorage.removeItem('tokenExpireAt');
     router.push('/login');
   }
 }

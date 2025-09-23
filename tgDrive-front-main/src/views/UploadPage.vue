@@ -114,10 +114,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
 import { ElMessage, UploadFile, UploadFiles, UploadInstance } from 'element-plus';
 import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
+import request from '@/utils/request';
 
 // --- Interfaces ---
 interface UploadedFile {
@@ -151,6 +151,7 @@ const uploadedFiles = ref<UploadedFile[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref<ProgressItem[]>([]);
 const websocket = ref<WebSocket | null>(null);
+const manualClosedSockets = new WeakSet<WebSocket>();
 const reconnectTimer = ref<number | null>(null);
 const heartbeatTimer = ref<number | null>(null);
 const reconnectAttempts = ref(0);
@@ -196,7 +197,7 @@ const handleUpload = async () => {
       const formData = new FormData();
       formData.append('file', file.raw as File);
 
-      const response = await axios.post('/api/upload', formData, {
+      const response = await request.post('/upload', formData, {
         timeout: 21600000,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -214,6 +215,11 @@ const handleUpload = async () => {
         throw new Error(msg || '上传响应错误');
       }
     } catch (error: any) {
+      if (error?.message === '登录状态已过期，请重新登录') {
+        progressItem.client.status = 'exception';
+        isUploading.value = false;
+        return;
+      }
       progressItem.client.status = 'exception';
       ElMessage.error(`${file.name} 上传失败: ${error.message}`);
     }
@@ -227,6 +233,7 @@ const handleUpload = async () => {
 const connectWebSocket = () => {
   // 清理之前的连接
   if (websocket.value) {
+    manualClosedSockets.add(websocket.value);
     websocket.value.close();
   }
 
@@ -290,6 +297,12 @@ const connectWebSocket = () => {
     websocket.value.onclose = (event) => {
       console.log('WebSocket 连接已关闭', event);
       stopHeartbeat();
+
+      const closedSocket = (event?.target || null) as WebSocket | null;
+      if (closedSocket && manualClosedSockets.has(closedSocket)) {
+        manualClosedSockets.delete(closedSocket);
+        return;
+      }
 
       // 只在页面可见且未达到最大重连次数时进行重连
       if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
@@ -384,6 +397,7 @@ onMounted(() => {
     if (document.hidden) {
       console.log('页面隐藏，断开 WebSocket 连接');
       if (websocket.value) {
+        manualClosedSockets.add(websocket.value);
         websocket.value.close();
       }
       stopHeartbeat();
@@ -439,6 +453,7 @@ onBeforeUnmount(() => {
 
   // 关闭 WebSocket 连接
   if (websocket.value) {
+    manualClosedSockets.add(websocket.value);
     websocket.value.close();
   }
 });

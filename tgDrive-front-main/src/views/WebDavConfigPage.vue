@@ -202,7 +202,7 @@ import {
   RefreshLeft,
   CopyDocument
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 // 响应式数据
 const configFormRef = ref<FormInstance>()
@@ -238,7 +238,7 @@ const webdavUrl = computed(() => {
 // 加载配置
 const loadConfig = async () => {
   try {
-    const response = await axios.get('/api/webdav-config')
+    const response = await request.get('/webdav-config')
     if (response.data.code === 1) {
       Object.assign(configForm, response.data.data)
     } else {
@@ -258,7 +258,7 @@ const saveConfig = async () => {
     await configFormRef.value.validate()
     saving.value = true
     
-    const response = await axios.put('/api/webdav-config', configForm)
+    const response = await request.put('/webdav-config', configForm)
     if (response.data.code === 1) {
       ElMessage.success('配置保存成功')
     } else {
@@ -293,7 +293,7 @@ const resetToDefault = async () => {
     )
     
     resetting.value = true
-    const response = await axios.post('/api/webdav-config/reset')
+    const response = await request.post('/webdav-config/reset')
     if (response.data.code === 1) {
       ElMessage.success('已恢复默认配置')
       await loadConfig()

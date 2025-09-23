@@ -1,13 +1,14 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
+import { callGlobalClearUserInfo } from '@/store/user';
 
 // 使用懒加载导入组件
 const Upload = () => import('../views/UploadPage.vue');
 const Home = () => import('../views/Home.vue');
 const FileList = () => import('../views/FileList.vue');
 const Login = () => import('../views/LoginPage.vue');
-const Register = () => import('../views/registerpage.vue');
+const Register = () => import('../views/RegisterPage.vue');
 
 const AboutPage = () => import('../views/AboutPage.vue');
 const Layout = () => import('@/components/Layout.vue');
@@ -165,7 +166,7 @@ const routes: Array<RouteRecordRaw> = [
   { 
     path: '/register', 
     component: Register,
-    beforeEnter: async (to, from, next) => {
+    beforeEnter: async (_to, _from, next) => {
       try {
         const response = await request.get('/setting/registration-status');
         if (response.data.code === 1 && response.data.data.isRegistrationAllowed) {
@@ -195,10 +196,24 @@ const router = createRouter({
 // Navigation guard
 const whiteList = ['/login', '/register', '/agreement', '/privacy', '/about']; // Whitelist for routes that don't require authentication
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach((to, _from, next) => {
+  void _from;
   const token = localStorage.getItem('token');
+  const expireAtRaw = localStorage.getItem('tokenExpireAt');
 
   if (token) {
+    if (expireAtRaw) {
+      const expireAt = Number(expireAtRaw);
+      if (!Number.isNaN(expireAt) && Date.now() >= expireAt) {
+        callGlobalClearUserInfo();
+        if (to.path !== '/login') {
+          ElMessage.warning('登录状态已过期，请重新登录');
+        }
+        next({ path: '/login', query: { redirect: to.fullPath } });
+        return;
+      }
+    }
+
     // If logged in
     if (to.path === '/login') {
       // If trying to access login page, redirect to home

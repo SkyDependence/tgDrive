@@ -5,8 +5,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.*;
 import com.skydevs.tgdrive.entity.User;
 import com.skydevs.tgdrive.result.Result;
-import com.skydevs.tgdrive.service.UserService;
 import com.skydevs.tgdrive.service.SettingService;
+import com.skydevs.tgdrive.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +40,19 @@ public class UserController {
         // 更新最后登录时间
         userService.updateLastLoginTime(user.getId());
         
+        long tokenTimeoutSeconds = StpUtil.getTokenTimeout();
+        Long expireAt = null;
+        if (tokenTimeoutSeconds > 0) {
+            expireAt = System.currentTimeMillis() + tokenTimeoutSeconds * 1000;
+        }
+
         UserLogin userLogin = UserLogin.builder()
                 .UserId(user.getId())
                 .token(StpUtil.getTokenValue())
                 .role(user.getRole())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .expireAt(expireAt)
                 .build();
 
         log.info(user.getId() + "登入");
