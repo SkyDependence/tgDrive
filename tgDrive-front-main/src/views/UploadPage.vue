@@ -416,18 +416,15 @@ onMounted(() => {
   // 页面可见性检测
   const handleVisibilityChange = () => {
     isPageVisible.value = !document.hidden;
-    if (document.hidden) {
-      console.log('页面隐藏，断开 WebSocket 连接');
-      if (websocket.value) {
-        manualClosedSockets.add(websocket.value);
-        websocket.value.close();
+    if (!document.hidden) {
+      console.log('页面显示，检查 WebSocket 连接状态');
+      if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
+        reconnectAttempts.value = 0;
+        reconnectDelay.value = 1000;
+        connectWebSocket();
       }
-      stopHeartbeat();
     } else {
-      console.log('页面显示，重新建立 WebSocket 连接');
-      reconnectAttempts.value = 0;
-      reconnectDelay.value = 1000;
-      connectWebSocket();
+      console.log('页面隐藏，保持 WebSocket 连接');
     }
   };
 
