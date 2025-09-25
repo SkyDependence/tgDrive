@@ -207,6 +207,16 @@ const handleUpload = async () => {
     return;
   }
 
+  try {
+    await request.get('/upload/permission-check');
+  } catch (error: any) {
+    const message = error?.response?.data?.msg || error?.message;
+    if (message && message !== '登录状态已过期，请重新登录') {
+      ElMessage.error(message);
+    }
+    return;
+  }
+
   isUploading.value = true;
   uploadedFiles.value = [];
   uploadProgress.value = selectedFiles.value.map(f => reactive({
