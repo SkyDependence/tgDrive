@@ -33,6 +33,7 @@
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
             :file-list="selectedFiles"
+            :disabled="isUploading"
             class="upload-dragger"
           >
             <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
@@ -183,10 +184,19 @@ const uploadCompletedCount = computed(() =>
 
 // --- Methods ---
 const handleFileChange = (_file: UploadFile, fileList: UploadFiles) => {
+  if (isUploading.value) {
+    ElMessage.warning('当前正在上传，请稍后再添加文件');
+    // 保持已有列表不变
+    selectedFiles.value = [...selectedFiles.value];
+    return;
+  }
   selectedFiles.value = fileList;
 };
 
 const handleFileRemove = (_file: UploadFile, fileList: UploadFiles) => {
+  if (isUploading.value) {
+    return;
+  }
   selectedFiles.value = fileList;
 };
 
@@ -457,6 +467,10 @@ const batchCopyLinks = () => {
 const handlePaste = (event: ClipboardEvent) => {
   const items = event.clipboardData?.items;
   if (!items) return;
+  if (isUploading.value) {
+    ElMessage.warning('当前正在上传，请稍后再粘贴文件');
+    return;
+  }
   const files: File[] = [];
   for (let i = 0; i < items.length; i++) {
     if (items[i].kind === 'file') {
