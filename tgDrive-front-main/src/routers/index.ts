@@ -20,6 +20,9 @@ const WebDavConfigPage = () => import('../views/WebDavConfigPage.vue');
 const UserManagement = () => import('../views/UserManagement.vue');
 const UserAgreementPage = () => import('@/views/UserAgreementPage.vue')
 const PrivacyPolicyPage = () => import('@/views/PrivacyPolicyPage.vue')
+const UploadTasksPage = () => import('@/views/UploadTasksPage.vue')
+const UploadQueuePage = () => import('@/views/UploadQueuePage.vue')
+const UploadStatisticsPage = () => import('@/views/UploadStatisticsPage.vue')
 
 
 interface RouteMeta extends Record<string | number | symbol, unknown> {
@@ -151,6 +154,30 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'user-management',
         component: UserManagement,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'admin'
+        } as RouteMeta
+      },
+      {
+        path: 'upload-tasks',
+        component: UploadTasksPage,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'admin'
+        } as RouteMeta
+      },
+      {
+        path: 'upload-queue',
+        component: UploadQueuePage,
+        meta: {
+          requiresAuth: true,
+          requiredRole: 'admin'
+        } as RouteMeta
+      },
+      {
+        path: 'upload-statistics',
+        component: UploadStatisticsPage,
         meta: {
           requiresAuth: true,
           requiredRole: 'admin'

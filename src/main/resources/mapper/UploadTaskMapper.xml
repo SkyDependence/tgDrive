@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.skydevs.tgdrive.mapper.UploadTaskMapper">
+
+    <resultMap id="uploadTaskResultMap" type="com.skydevs.tgdrive.entity.UploadTask">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="fileHash" column="file_hash"/>
+        <result property="chunkSize" column="chunk_size"/>
+        <result property="totalChunks" column="total_chunks"/>
+        <result property="uploadedChunks" column="uploaded_chunks"/>
+        <result property="chunkFileIds" column="chunk_file_ids"/>
+        <result property="status" column="status"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="finalFileId" column="final_file_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="expiresAt" column="expires_at"/>
+    </resultMap>
+
+    <insert id="insertUploadTask" parameterType="com.skydevs.tgdrive.entity.UploadTask">
+        INSERT INTO upload_tasks (
+            id, user_id, file_name, file_size, file_hash,
+            chunk_size, total_chunks, uploaded_chunks, chunk_file_ids,
+            status, error_message, final_file_id, expires_at
+        ) VALUES (
+            #{id}, #{userId}, #{fileName}, #{fileSize}, #{fileHash},
+            #{chunkSize}, #{totalChunks}, #{uploadedChunks}, #{chunkFileIds},
+            #{status}, #{errorMessage}, #{finalFileId}, #{expiresAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="uploadTaskResultMap">
+        SELECT * FROM upload_tasks WHERE id = #{id}
+    </select>
+
+    <select id="selectByHashAndUserId" resultMap="uploadTaskResultMap">
+        SELECT * FROM upload_tasks
+        WHERE file_hash = #{fileHash} AND user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateUploadedChunks">
+        UPDATE upload_tasks
+        SET uploaded_chunks = #{uploadedChunks},
+            chunk_file_ids = #{chunkFileIds},
+            updated_at = CURRENT_TIMESTAMP,
+            status = 'uploading'
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE upload_tasks
+        SET status = #{status},
+            error_message = #{errorMessage},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="completeTask">
+        UPDATE upload_tasks
+        SET status = 'completed',
+            final_file_id = #{finalFileId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteExpiredTasks">
+        DELETE FROM upload_tasks WHERE expires_at &lt; #{now}
+    </delete>
+
+    <select id="selectByUserId" resultMap="uploadTaskResultMap">
+        SELECT * FROM upload_tasks
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM upload_tasks WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteOldCompletedTasks">
+        DELETE FROM upload_tasks
+        WHERE status = 'completed'
+        AND updated_at &lt; #{beforeDate}
+    </delete>
+
+</mapper>

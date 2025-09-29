@@ -45,6 +45,8 @@ const props = defineProps<{
 
 // --- Computed Properties for a Stable UI ---
 
+const formatPercentage = (value: number) => Number(value.toFixed(2));
+
 const totalPercentage = computed(() => {
   const item = props.item;
   // The success of the server stage is the definitive final state.
@@ -54,7 +56,7 @@ const totalPercentage = computed(() => {
   }
   // If the server is uploading, calculate the second half of the progress.
   if (item.server.status === 'uploading') {
-    return 50 + (item.server.percentage * 0.5);
+    return formatPercentage(50 + (item.server.percentage * 0.5));
   }
   // If the client has finished and the server is waiting, we are exactly at the halfway mark.
   if (item.client.status === 'success') {
@@ -62,14 +64,14 @@ const totalPercentage = computed(() => {
   }
   // If the client is uploading, calculate the first half of the progress.
   if (item.client.status === 'uploading') {
-    return item.client.percentage * 0.5;
+    return formatPercentage(item.client.percentage * 0.5);
   }
   // Handle failure cases to show where it stopped.
   if (item.client.status === 'exception') {
-    return item.client.percentage * 0.5;
+    return formatPercentage(item.client.percentage * 0.5);
   }
   if (item.server.status === 'exception') {
-    return 50 + (item.server.percentage * 0.5);
+    return formatPercentage(50 + (item.server.percentage * 0.5));
   }
   return 0;
 });

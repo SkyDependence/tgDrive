@@ -30,8 +30,13 @@ spring:
   main:
     allow-circular-references: true
   datasource:
-    url: jdbc:sqlite:db/tgDrive.db
+    url: jdbc:sqlite:db/tgDrive.db?journal_mode=WAL&busy_timeout=5000&synchronous=NORMAL
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1  # SQLite只支持单连接
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   sql:
     init:
       mode: always

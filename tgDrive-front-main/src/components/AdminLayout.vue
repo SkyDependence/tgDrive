@@ -74,6 +74,10 @@
             <el-icon><Top /></el-icon>
             <template #title>上传文件</template>
           </el-menu-item>
+          <el-menu-item index="/upload-tasks">
+            <el-icon><List /></el-icon>
+            <template #title>上传任务</template>
+          </el-menu-item>
           <el-menu-item index="/backup">
             <el-icon><Download /></el-icon>
             <template #title>备份数据库</template>
@@ -132,6 +136,10 @@
           <el-menu-item index="/">
             <el-icon><Top /></el-icon>
             <template #title>上传文件</template>
+          </el-menu-item>
+          <el-menu-item index="/upload-tasks">
+            <el-icon><List /></el-icon>
+            <template #title>上传任务</template>
           </el-menu-item>
           <el-menu-item index="/backup">
             <el-icon><Download /></el-icon>

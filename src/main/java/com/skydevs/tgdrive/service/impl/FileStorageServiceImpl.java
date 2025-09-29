@@ -360,7 +360,7 @@ public class FileStorageServiceImpl implements FileStorageService {
      * @param filename 文件名
      * @return 上传文件的返回信息
      */
-    private Message sendDocument(byte[] fileData, String filename) {
+    public Message sendDocument(byte[] fileData, String filename) {
         TelegramBot bot = telegramBotService.getBot();
         String chatId = telegramBotService.getChatId();
         int retryCount = 3;

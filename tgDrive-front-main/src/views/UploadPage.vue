@@ -20,6 +20,12 @@
             <div class="card-header">
               <el-icon><UploadFilled /></el-icon>
               <span>文件上传</span>
+              <el-switch
+                v-model="enableResumable"
+                active-text="断点续传"
+                inactive-text="普通上传"
+                style="margin-left: auto"
+              />
             </div>
           </template>
 
@@ -43,6 +49,10 @@
             <template #tip>
               <div class="el-upload__tip">
                 支持多文件上传，支持 Ctrl+V 粘贴文件。
+                <span v-if="enableResumable" class="resumable-tip">
+                  <el-icon><InfoFilled /></el-icon>
+                  断点续传模式：支持大文件上传、断网恢复、秒传
+                </span>
               </div>
             </template>
           </el-upload>
@@ -57,7 +67,24 @@
               size="large"
               :icon="Upload"
             >
-              {{ isUploading ? `正在上传 (${uploadCompletedCount}/${selectedFiles.length})` : '开始上传' }}
+              {{ uploadButtonText }}
+            </el-button>
+            <el-button
+              v-if="isUploading && enableResumable"
+              @click="togglePause"
+              size="large"
+              :icon="isPaused ? VideoPlay : VideoPause"
+            >
+              {{ isPaused ? '继续' : '暂停' }}
+            </el-button>
+            <el-button
+              v-if="isUploading"
+              @click="cancelUpload"
+              size="large"
+              type="danger"
+              :icon="CircleClose"
+            >
+              取消
             </el-button>
           </div>
 
@@ -69,6 +96,24 @@
                 :key="item.uid"
                 :item="item"
               />
+
+              <!-- 断点续传额外信息 -->
+              <div v-if="enableResumable && resumableInfo" class="resumable-info">
+                <el-descriptions :column="2" size="small" border>
+                  <el-descriptions-item label="上传模式">
+                    <el-tag size="small" type="success">断点续传</el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="任务ID">
+                    {{ resumableInfo.taskId }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="总分块">
+                    {{ resumableInfo.totalChunks }} 块
+                  </el-descriptions-item>
+                  <el-descriptions-item label="已上传">
+                    {{ resumableInfo.uploadedChunks }} 块
+                  </el-descriptions-item>
+                </el-descriptions>
+              </div>
             </div>
           </el-collapse-transition>
         </el-card>
@@ -84,7 +129,7 @@
               <el-button text type="primary" @click="goToFileList">查看全部</el-button>
             </div>
           </template>
-          
+
           <div v-if="uploadedFiles.length === 0" class="empty-state">
             <el-empty description="暂无上传成功的文件" />
           </div>
@@ -94,6 +139,7 @@
               <div class="file-details">
                 <el-icon><Document /></el-icon>
                 <span class="uploaded-file-name">{{ file.fileName }}</span>
+                <el-tag v-if="file.isInstant" type="success" size="small" style="margin-left: 8px">秒传</el-tag>
               </div>
               <div class="file-actions">
                 <el-tooltip content="复制 Markdown 格式" placement="top">
@@ -108,16 +154,13 @@
               </div>
             </div>
           </div>
-          
+
           <div v-if="uploadedFiles.length > 0" class="batch-actions">
             <div class="batch-button-group">
               <el-button @click="batchCopyMarkdown" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (MD)</el-button>
               <el-button @click="batchCopyLinks" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (链接)</el-button>
             </div>
           </div>
-          
-          <!-- 批量操作按钮移到这里 -->
-
         </el-card>
       </el-col>
     </el-row>
@@ -128,15 +171,21 @@
 import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, UploadFile, UploadFiles, UploadInstance } from 'element-plus';
-import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
+import {
+  UploadFilled, Upload, Document, Link, Tickets, Paperclip, View,
+  InfoFilled, VideoPlay, VideoPause, CircleClose
+} from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
 import request from '@/utils/request';
+import { UploadQueueManager } from '@/utils/uploadQueueManager';
+import type { UploadOptions } from '@/utils/resumableUploader';
 
 // --- Interfaces ---
 interface UploadedFile {
   fileName: string;
   downloadLink: string;
   fileId: string;
+  isInstant?: boolean; // 是否秒传
 }
 
 interface ProgressItem {
@@ -156,6 +205,12 @@ interface ProgressItem {
   };
 }
 
+interface ResumableInfo {
+  taskId: string;
+  totalChunks: number;
+  uploadedChunks: number;
+}
+
 // --- Component State ---
 const router = useRouter();
 const uploadRef = ref<UploadInstance>();
@@ -163,6 +218,7 @@ const selectedFiles = ref<UploadFile[]>([]);
 const uploadedFiles = ref<UploadedFile[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref<ProgressItem[]>([]);
+const totalUploadCount = ref(0);
 const websocket = ref<WebSocket | null>(null);
 const manualClosedSockets = new WeakSet<WebSocket>();
 const reconnectTimer = ref<number | null>(null);
@@ -170,23 +226,65 @@ const heartbeatTimer = ref<number | null>(null);
 const heartbeatTimeoutTimer = ref<number | null>(null);
 const reconnectAttempts = ref(0);
 const maxReconnectAttempts = 10;
-const reconnectDelay = ref(1000); // 初始重连延迟 1 秒
+const reconnectDelay = ref(1000);
 const isPageVisible = ref(true);
 const CONCURRENCY_LIMIT = 3;
 const HEARTBEAT_INTERVAL = 30000;
 const HEARTBEAT_TIMEOUT = 15000;
 const connectionLost = ref(false);
 const reconnectFailureNotified = ref(false);
+const RESUMABLE_MIN_SIZE = 10 * 1024 * 1024; // 10MB
+
+// 断点续传相关
+const enableResumable = ref(true); // 是否启用断点续传
+const isPaused = ref(false);
+const resumableInfo = ref<ResumableInfo | null>(null);
+
+const queueManager = new UploadQueueManager({
+  maxConcurrent: CONCURRENCY_LIMIT,
+  autoStart: false,
+  persistQueue: false,
+  onQueueUpdate: () => {
+    const tasks = queueManager.getTasks();
+    const active = tasks.some(task => task.status === 'pending' || task.status === 'uploading');
+    isUploading.value = active;
+    if (!active) {
+      isPaused.value = false;
+      resumableInfo.value = null;
+      totalUploadCount.value = 0;
+    }
+  },
+  onTaskFailed: (task, error) => {
+    const progressItem = taskIdToProgress.get(task.id);
+    if (progressItem) {
+      progressItem.client.status = 'exception';
+      progressItem.server.status = 'exception';
+    }
+    if (task.file) {
+      ElMessage.error(`${task.file.name} 上传失败: ${error.message}`);
+    }
+  }
+});
+
+const taskIdToProgress = new Map<string, ProgressItem>();
+const serverTaskState = new Map<string, ResumableInfo>();
+
+const toPercent = (value: number): number => Number(value.toFixed(2));
 
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
 );
 
+const uploadButtonText = computed(() => {
+  if (!isUploading.value) return '开始上传';
+  if (isPaused.value) return '已暂停';
+  return `正在上传 (${uploadCompletedCount.value}/${Math.max(totalUploadCount.value, 1)})`;
+});
+
 // --- Methods ---
 const handleFileChange = (_file: UploadFile, fileList: UploadFiles) => {
   if (isUploading.value) {
     ElMessage.warning('当前正在上传，请稍后再添加文件');
-    // 保持已有列表不变
     selectedFiles.value = [...selectedFiles.value];
     return;
   }
@@ -200,33 +298,198 @@ const handleFileRemove = (_file: UploadFile, fileList: UploadFiles) => {
   selectedFiles.value = fileList;
 };
 
-// Corrected: Using a sequential for...of loop for robust, one-by-one uploads.
-const handleUpload = async () => {
-  if (selectedFiles.value.length === 0) {
-    ElMessage.warning('请先选择文件');
+// 切换暂停/继续
+const togglePause = () => {
+  if (!isUploading.value) {
     return;
   }
 
-  try {
-    await request.get('/upload/permission-check');
-  } catch (error: any) {
-    const message = error?.response?.data?.msg || error?.message;
-    if (message && message !== '登录状态已过期，请重新登录') {
-      ElMessage.error(message);
-    }
+  if (isPaused.value) {
+    const pausedTasks = queueManager.getTasks().filter(task => task.status === 'paused');
+    pausedTasks.forEach(task => queueManager.resumeTask(task.id));
+    queueManager.start();
+    isPaused.value = false;
+    ElMessage.success('已恢复上传');
+  } else {
+    queueManager.stop();
+    isPaused.value = true;
+    ElMessage.info('已暂停上传');
+  }
+};
+
+// 取消上传
+const cancelUpload = async () => {
+  queueManager.stop();
+  await queueManager.cancelAll();
+  taskIdToProgress.clear();
+  serverTaskState.clear();
+  isUploading.value = false;
+  isPaused.value = false;
+  uploadProgress.value = [];
+  selectedFiles.value = [];
+  uploadRef.value?.clearFiles();
+  resumableInfo.value = null;
+  totalUploadCount.value = 0;
+  ElMessage.warning('已取消上传');
+};
+
+// 使用断点续传上传
+const handleResumableUpload = async () => {
+  queueManager.stop();
+  await queueManager.cancelAll();
+
+  const files = [...selectedFiles.value];
+
+  for (const file of files) {
+    if (!file.raw) continue;
+
+    const progressItem = uploadProgress.value.find(p => p.uid === file.uid);
+    if (!progressItem) continue;
+
+    progressItem.client.status = 'uploading';
+    progressItem.server.status = 'waiting';
+    progressItem.client.percentage = 0;
+    progressItem.server.percentage = 0;
+    progressItem.server.currentChunk = 0;
+
+    let queueTaskId = '';
+    let serverTaskId = '';
+
+    const options: UploadOptions = {
+      concurrency: CONCURRENCY_LIMIT,
+      onProgress: (
+        _overallProgress: number,
+        _chunkIndex: number,
+        totalChunks: number,
+        taskId: string,
+        stageOneRatio: number = 0
+      ) => {
+        if (!taskId) return;
+
+        serverTaskId = taskId;
+
+        const rawFile = file.raw as File;
+        const state = serverTaskState.get(taskId) || {
+          taskId,
+          totalChunks,
+          uploadedChunks: 0
+        };
+
+        state.totalChunks = totalChunks;
+        serverTaskState.set(taskId, state);
+
+        const progressRatio = totalChunks > 0
+          ? Math.min((state.uploadedChunks + stageOneRatio) / totalChunks, 1)
+          : Math.min(stageOneRatio, 1);
+
+        progressItem.client.percentage = toPercent(progressRatio * 100);
+        progressItem.client.loaded = rawFile.size * progressRatio;
+        progressItem.server.totalChunks = totalChunks;
+        progressItem.server.percentage = state.uploadedChunks > 0 && totalChunks > 0
+          ? toPercent((state.uploadedChunks / totalChunks) * 100)
+          : 0;
+        progressItem.server.status = state.uploadedChunks > 0 ? 'uploading' : 'waiting';
+
+        taskIdToProgress.set(queueTaskId, progressItem);
+
+        if (!resumableInfo.value || resumableInfo.value.taskId === taskId) {
+          resumableInfo.value = {
+            taskId,
+            totalChunks,
+            uploadedChunks: state.uploadedChunks
+          };
+        }
+      },
+      onChunkComplete: (
+        _chunkIndex: number,
+        totalChunks: number,
+        taskId: string,
+        completedCount: number
+      ) => {
+        if (!taskId) return;
+
+        serverTaskId = taskId;
+
+        const rawFile = file.raw as File;
+        const state = serverTaskState.get(taskId) || {
+          taskId,
+          totalChunks,
+          uploadedChunks: 0
+        };
+
+        state.totalChunks = totalChunks;
+        state.uploadedChunks = completedCount;
+        serverTaskState.set(taskId, state);
+
+        const progressRatio = totalChunks > 0
+          ? Math.min(completedCount / totalChunks, 1)
+          : 1;
+
+        progressItem.client.percentage = toPercent(progressRatio * 100);
+        progressItem.client.loaded = rawFile.size * progressRatio;
+        progressItem.server.totalChunks = totalChunks;
+        progressItem.server.currentChunk = completedCount;
+        progressItem.server.percentage = toPercent(progressRatio * 100);
+        progressItem.server.status = completedCount >= totalChunks ? 'success' : 'uploading';
+
+        if (!resumableInfo.value || resumableInfo.value.taskId === taskId) {
+          resumableInfo.value = {
+            taskId,
+            totalChunks,
+            uploadedChunks: completedCount
+          };
+        }
+      },
+      onComplete: (data: any) => {
+        progressItem.client.status = 'success';
+        progressItem.server.status = 'success';
+        progressItem.server.percentage = 100;
+        progressItem.server.currentChunk = progressItem.server.totalChunks;
+
+        const isInstant = progressItem.server.totalChunks === 0 ||
+          progressItem.server.currentChunk === 0;
+
+        uploadedFiles.value.push({
+          ...data,
+          isInstant
+        });
+
+        if (isInstant) {
+          ElMessage.success(`${file.name} 秒传成功！`);
+        }
+
+        if (serverTaskId) {
+          serverTaskState.delete(serverTaskId);
+        }
+        taskIdToProgress.delete(queueTaskId);
+      },
+      onError: (error: Error) => {
+        progressItem.client.status = 'exception';
+        progressItem.server.status = 'exception';
+        ElMessage.error(`${file.name} 上传失败: ${error.message}`);
+
+        if (serverTaskId) {
+          serverTaskState.delete(serverTaskId);
+        }
+        taskIdToProgress.delete(queueTaskId);
+      }
+    };
+
+    queueTaskId = queueManager.addTask(file.raw as File, 5, options);
+    taskIdToProgress.set(queueTaskId, progressItem);
+  }
+
+  if (queueManager.getTasks().length === 0) {
+    isUploading.value = false;
+    totalUploadCount.value = 0;
     return;
   }
 
-  isUploading.value = true;
-  uploadedFiles.value = [];
-  uploadProgress.value = selectedFiles.value.map(f => reactive({
-    uid: f.uid,
-    name: f.name,
-    total: f.size || 0,
-    client: { percentage: 0, loaded: 0, status: 'uploading' },
-    server: { percentage: 0, currentChunk: 0, totalChunks: 0, status: 'waiting' },
-  }));
+  queueManager.start();
+};
 
+// 使用普通上传（原有逻辑）
+const handleNormalUpload = async () => {
   const queue = [...selectedFiles.value];
 
   const runNext = async (): Promise<void> => {
@@ -248,7 +511,7 @@ const handleUpload = async () => {
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             progressItem.client.loaded = progressEvent.loaded;
-            progressItem.client.percentage = (progressEvent.loaded / progressEvent.total) * 100;
+            progressItem.client.percentage = toPercent((progressEvent.loaded / progressEvent.total) * 100);
           }
         }
       });
@@ -276,27 +539,76 @@ const handleUpload = async () => {
 
   const workerCount = Math.min(CONCURRENCY_LIMIT, queue.length);
   const workers = Array.from({ length: workerCount }, () => runNext());
-  const results = await Promise.allSettled(workers);
+  await Promise.allSettled(workers);
+};
 
-  const hadAuthError = results.some((result) => result.status === 'rejected' && result.reason?.message === '登录状态已过期，请重新登录');
-
-  isUploading.value = false;
-  selectedFiles.value = [];
-  uploadRef.value?.clearFiles();
-
-  if (hadAuthError) {
+const handleUpload = async () => {
+  if (selectedFiles.value.length === 0) {
+    ElMessage.warning('请先选择文件');
     return;
+  }
+
+  try {
+    await request.get('/upload/permission-check');
+  } catch (error: any) {
+    const message = error?.response?.data?.msg || error?.message;
+    if (message && message !== '登录状态已过期，请重新登录') {
+      ElMessage.error(message);
+    }
+    return;
+  }
+
+  isUploading.value = true;
+  isPaused.value = false;
+  uploadedFiles.value = [];
+  resumableInfo.value = null;
+  totalUploadCount.value = selectedFiles.value.length;
+
+  uploadProgress.value = selectedFiles.value.map(f => reactive({
+    uid: f.uid,
+    name: f.name,
+    total: f.size || 0,
+    client: { percentage: 0, loaded: 0, status: 'uploading' },
+    server: { percentage: 0, currentChunk: 0, totalChunks: 0, status: 'waiting' },
+  }));
+
+  const smallFiles = enableResumable.value
+    ? selectedFiles.value.filter(f => (f.raw?.size ?? f.size ?? 0) <= RESUMABLE_MIN_SIZE)
+    : [];
+
+  const shouldUseResumable = enableResumable.value && smallFiles.length === 0;
+
+  if (shouldUseResumable) {
+    await handleResumableUpload();
+    selectedFiles.value = [];
+    uploadRef.value?.clearFiles();
+    return;
+  }
+
+  if (enableResumable.value && smallFiles.length > 0) {
+    const names = smallFiles.map(f => f.name).join('、');
+    ElMessage.warning(`以下文件不满足断点续传最小限制(>10MB)，已改用普通上传：${names}`);
+  }
+
+  try {
+    await handleNormalUpload();
+  } finally {
+    isUploading.value = false;
+    isPaused.value = false;
+    selectedFiles.value = [];
+    uploadRef.value?.clearFiles();
+    resumableInfo.value = null;
+    totalUploadCount.value = 0;
   }
 };
 
+// WebSocket相关方法保持不变
 const connectWebSocket = () => {
-  // 清理之前的连接
   if (websocket.value) {
     manualClosedSockets.add(websocket.value);
     websocket.value.close();
   }
 
-  // 清理定时器
   if (reconnectTimer.value) {
     clearTimeout(reconnectTimer.value);
     reconnectTimer.value = null;
@@ -315,16 +627,15 @@ const connectWebSocket = () => {
     websocket.value.onopen = () => {
       console.log('WebSocket 连接已建立');
       reconnectAttempts.value = 0;
-      reconnectDelay.value = 1000; // 重置重连延迟
+      reconnectDelay.value = 1000;
       reconnectFailureNotified.value = false;
       connectionLost.value = false;
-      startHeartbeat(); // 开始心跳
+      startHeartbeat();
     };
 
     websocket.value.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // 如果是心跳响应，忽略
         if (data.type === 'pong') {
           clearHeartbeatTimeout();
           return;
@@ -334,12 +645,35 @@ const connectWebSocket = () => {
         if (!progressItem) return;
 
         if (data.type === 'upload_progress') {
-          progressItem.server.status = 'uploading';
           const totalChunks = data.total_chunks || data.totalChunks;
           const currentChunk = data.current_chunk || data.currentChunk;
-          if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
-          if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
-          if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
+
+          if (totalChunks !== undefined) {
+            progressItem.server.totalChunks = totalChunks;
+          }
+
+          if (currentChunk !== undefined) {
+            const confirmedChunks = resumableInfo.value && resumableInfo.value.taskId
+              ? resumableInfo.value.uploadedChunks
+              : 0;
+            const safeCurrent = Math.min(currentChunk, confirmedChunks);
+            if (safeCurrent > 0) {
+              progressItem.server.status = safeCurrent >= (progressItem.server.totalChunks || 0)
+                ? 'success'
+                : 'uploading';
+            }
+            progressItem.server.currentChunk = safeCurrent;
+          }
+
+          if (data.percentage !== undefined) {
+            const confirmedChunks = resumableInfo.value && resumableInfo.value.taskId
+              ? resumableInfo.value.uploadedChunks
+              : 0;
+            const safePercentage = totalChunks
+              ? Math.min(data.percentage, (confirmedChunks / totalChunks) * 100)
+              : data.percentage;
+            progressItem.server.percentage = toPercent(safePercentage);
+          }
         } else if (data.type === 'upload_complete') {
           progressItem.server.status = 'success';
           progressItem.server.percentage = 100;
@@ -366,7 +700,6 @@ const connectWebSocket = () => {
         return;
       }
 
-      // 只在页面可见且未达到最大重连次数时进行重连
       if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
         reconnectAttempts.value++;
         console.log(`尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`);
@@ -375,17 +708,15 @@ const connectWebSocket = () => {
           connectWebSocket();
         }, reconnectDelay.value);
 
-        // 使用指数退避策略，最大延迟 30 秒
         reconnectDelay.value = Math.min(reconnectDelay.value * 2, 30000);
       } else if (isPageVisible.value && !reconnectFailureNotified.value) {
         reconnectFailureNotified.value = true;
         connectionLost.value = true;
-        ElMessage.error('实时连接多次尝试失败，请检查网络后点击“重新连接”按钮。');
+        ElMessage.error('实时连接多次尝试失败，请检查网络后点击"重新连接"按钮。');
       }
     };
   } catch (error) {
     console.error('创建 WebSocket 连接失败:', error);
-    // 尝试重连
     if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
       reconnectAttempts.value++;
       reconnectTimer.value = window.setTimeout(() => {
@@ -395,7 +726,7 @@ const connectWebSocket = () => {
     } else if (isPageVisible.value && !reconnectFailureNotified.value) {
       reconnectFailureNotified.value = true;
       connectionLost.value = true;
-      ElMessage.error('实时连接多次尝试失败，请检查网络后点击“重新连接”按钮。');
+      ElMessage.error('实时连接多次尝试失败，请检查网络后点击"重新连接"按钮。');
     }
   }
 };
@@ -412,7 +743,6 @@ const retryWebSocket = () => {
   connectWebSocket();
 };
 
-// 心跳机制
 const clearHeartbeatTimeout = () => {
   if (heartbeatTimeoutTimer.value) {
     clearTimeout(heartbeatTimeoutTimer.value);
@@ -444,7 +774,7 @@ const startHeartbeat = () => {
   sendHeartbeat();
   heartbeatTimer.value = window.setInterval(() => {
     sendHeartbeat();
-  }, HEARTBEAT_INTERVAL); // 每 30 秒发送一次心跳
+  }, HEARTBEAT_INTERVAL);
 };
 
 const stopHeartbeat = () => {
@@ -504,7 +834,6 @@ const handlePaste = (event: ClipboardEvent) => {
 onMounted(() => {
   window.addEventListener('paste', handlePaste);
 
-  // 页面可见性检测
   const handleVisibilityChange = () => {
     isPageVisible.value = !document.hidden;
     if (!document.hidden) {
@@ -522,7 +851,6 @@ onMounted(() => {
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
-  // 添加窗口焦点事件监听
   const handleFocus = () => {
     if (connectionLost.value) {
       console.log('窗口获得焦点，但连接已标记为失败，等待用户手动重连');
@@ -543,7 +871,6 @@ onMounted(() => {
 
   connectWebSocket();
 
-  // 保存事件监听器以便清理
   (window as any).__visibilityHandler = handleVisibilityChange;
   (window as any).__focusHandler = handleFocus;
 });
@@ -551,35 +878,32 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('paste', handlePaste);
 
-  // 清理页面可见性监听
   if ((window as any).__visibilityHandler) {
     document.removeEventListener('visibilitychange', (window as any).__visibilityHandler);
     delete (window as any).__visibilityHandler;
   }
 
-  // 清理焦点事件监听
   if ((window as any).__focusHandler) {
     window.removeEventListener('focus', (window as any).__focusHandler);
     delete (window as any).__focusHandler;
   }
 
-  // 清理定时器
   if (reconnectTimer.value) {
     clearTimeout(reconnectTimer.value);
   }
   stopHeartbeat();
 
-  // 关闭 WebSocket 连接
   if (websocket.value) {
     manualClosedSockets.add(websocket.value);
     websocket.value.close();
   }
+
+  queueManager.stop();
+  queueManager.cancelAll().catch(() => {
+    // 忽略组件卸载时的取消异常
+  });
 });
 </script>
-
-
-
-
 
 <style scoped>
 .page-container {
@@ -616,86 +940,31 @@ onBeforeUnmount(() => {
 
 .upload-actions {
   text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.resumable-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  color: var(--el-color-success);
+  font-weight: 500;
+}
+
+.resumable-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
 }
 
 .progress-section {
   margin-top: 20px;
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
-}
-
-.file-progress-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 6px;
-  background-color: var(--el-fill-color-lighter);
-  box-sizing: border-box;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.file-name {
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--el-text-color-primary);
-  flex-grow: 1;
-}
-
-.file-size-info {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  flex-shrink: 0;
-}
-
-.unified-progress-bar {
-  margin: 4px 0;
-}
-
-.progress-info-text {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  text-align: center;
-  height: 16px;
-}
-
-.el-progress {
-  width: 100%;
-}
-
-.chunk-progress-info {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: var(--el-fill-color-extra-light);
-  border-radius: 4px;
-  border-left: 3px solid var(--el-color-primary);
-}
-
-.chunk-text {
-  font-size: 11px;
-  color: var(--el-text-color-regular);
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.telegram-info {
-  margin-top: 8px;
-}
-
-.telegram-progress-text {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  margin-bottom: 4px;
 }
 
 .empty-state {
@@ -718,7 +987,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 10px 12px;
   border-radius: 6px;
-  background-color: #f9fafb; /* 浅色背景 */
+  background-color: #f9fafb;
   margin-bottom: 8px;
   transition: background-color 0.3s;
   border: 1px solid var(--el-border-color-lighter);
@@ -739,7 +1008,7 @@ html.dark .uploaded-file-item {
   align-items: center;
   gap: 8px;
   flex: 1;
-  min-width: 0; /* 允许收缩 */
+  min-width: 0;
 }
 
 .uploaded-file-name {
@@ -747,162 +1016,52 @@ html.dark .uploaded-file-item {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 300px; /* 限制最大宽度 */
+  max-width: 300px;
 }
 
 .file-actions {
   display: flex;
   gap: 5px;
-  flex-shrink: 0; /* 防止被压缩 */
-  min-width: 120px; /* 确保按钮区域有足够空间 */
+  flex-shrink: 0;
+  min-width: 120px;
 }
 
 .batch-actions {
-    margin-top: 20px;
-    border-top: 1px solid var(--border-color);
-    padding-top: 20px;
-    display: flex;
-    justify-content: center;
-  }
-
-  .batch-button-group {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-:deep(.el-progress-bar__inner--striped) {
-  animation-duration: 2s; /* 减慢流动动画速度，默认为1s */
-}
-
-/* 双进度条样式 */
-.dual-progress-container {
-  margin-top: 10px;
-  padding: 15px;
-  background: var(--hover-bg-color);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.progress-stage {
-  margin-bottom: 15px;
-}
-
-.progress-stage:last-child {
-  margin-bottom: 0;
-}
-
-.stage-header {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  justify-content: center;
 }
 
-.stage-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-color);
+.batch-button-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
-.stage-status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.status-waiting {
-  background: #f0f0f0;
-  color: #666;
-}
-
-.status-uploading {
-  background: #e6f7ff;
-  color: #1890ff;
-}
-
-.status-completed {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.status-error {
-  background: #fff2f0;
-  color: #ff4d4f;
-}
-
-.chunk-info {
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  margin-top: 4px;
-  text-align: center;
-}
-
-/* Responsive styles for UploadPage.vue */
-@media (max-width: 767px) { /* Mobile breakpoint */
+@media (max-width: 767px) {
   .page-container {
-    padding: 10px; /* Reduce padding on mobile */
+    padding: 10px;
   }
 
   .card-header {
-    flex-wrap: wrap; /* Allow header items to wrap */
-    justify-content: space-between; /* Better alignment */
+    flex-wrap: wrap;
+    justify-content: space-between;
     text-align: left;
     gap: 8px;
   }
 
-  .card-header .el-button {
-    margin-top: 0;
-    flex-shrink: 0;
-  }
-
   .upload-actions {
     margin-top: 15px;
+    flex-direction: column;
   }
 
   .upload-actions .el-button {
-    width: 100%; /* Make upload button full width */
+    width: 100%;
     padding: 12px 20px;
     font-size: 16px;
-  }
-
-  .file-progress-item {
-    padding: 15px;
-    margin-bottom: 20px;
-    border: 1px solid var(--el-border-color-light);
-  }
-
-  .file-name {
-    width: 100%;
-    max-width: none;
-    text-align: left;
-    margin-bottom: 8px;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .el-progress {
-    width: 100%;
-    margin: 8px 0;
-  }
-
-  .file-size-info {
-    text-align: left;
-    margin-top: 8px;
-    font-size: 13px;
-  }
-
-  .telegram-info {
-    margin-top: 12px;
-    padding-top: 8px;
-    border-top: 1px solid var(--el-border-color-lighter);
-  }
-
-  .telegram-progress-text {
-    margin-bottom: 8px;
-    font-size: 13px;
   }
 
   .uploaded-file-item {
@@ -929,32 +1088,5 @@ html.dark .uploaded-file-item {
     gap: 8px;
     margin-top: 8px;
   }
-
-  .file-actions .el-button {
-    flex: 1;
-    max-width: 80px;
-    padding: 8px;
-  }
-
-  .batch-actions {
-     justify-content: center;
-     padding: 15px 0;
-   }
-
-   .batch-button-group {
-     display: flex;
-     flex-direction: row;
-     gap: 10px;
-     width: 100%;
-     max-width: 300px;
-     justify-content: center;
-   }
-
-   .batch-button-group .el-button {
-     flex: 1;
-     padding: 10px 8px;
-     font-size: 13px;
-     white-space: nowrap;
-   }
 }
 </style>
