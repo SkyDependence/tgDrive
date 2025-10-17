@@ -1,13 +1,15 @@
 # tgDrive - 无限容量和速度的网盘
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/SkyDependence/tgDrive)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/SkyDependence/tgDrive/docker-publish.yml)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/SkyDependence/tgDrive/release-stable.yml)
+![Docker Pulls](https://img.shields.io/docker/pulls/nanyangzesi/tgdrive?style=flat&logo=docker)
 ![Docker Image Size](https://img.shields.io/docker/image-size/nanyangzesi/tgdrive/latest)
 ![GitHub stars](https://img.shields.io/github/stars/SkyDependence/tgDrive)
 ![GitHub forks](https://img.shields.io/github/forks/SkyDependence/tgDrive)
 ![GitHub issues](https://img.shields.io/github/issues/SkyDependence/tgDrive)
 ![GitHub license](https://img.shields.io/github/license/SkyDependence/tgDrive)
 [![tg-qun](https://img.shields.io/static/v1?label=TG%E7%BE%A4&amp;message=TgDrive&amp;color=blue)](https://t.me/+nhHtap9IYbVhOTM1)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SkyDependence/tgDrive)
 
 **tgDrive** 是一款使用 Java 开发的基于 Telegram Bot 的网盘应用，支持不限容量和速度的文件存储。通过多线程技术和优化的传输策略，为用户提供高效、可靠的云存储解决方案。
 
@@ -30,22 +32,42 @@
 
 ## 功能特点
 
-### 核心优势
+### 核心功能
 
 - 🚀 **突破限制**：完全突破 Telegram Bot API 的 20MB 文件大小限制
 - 📈 **多线程传输**：采用多线程上传下载技术，最大化利用带宽资源
 - 🔗 **外链支持**：支持图片外链功能，可直接在浏览器中访问和预览
 - 🖼️ **图床集成**：完美支持 PicGo 图床工具，提供便捷的图片托管服务
 - 🎯 **GIF 优化**：解决 Telegram 自动将 GIF 转换为 MP4 的问题
-- 🌐 **WebDAV 支持**：提供 WebDAV 接口，允许第三方程序进行文件管理和操作，增强文件交互的灵活性
+- 🌐 **WebDAV 支持**：提供 WebDAV 接口，支持第三方客户端（如 WinSCP、AList）进行文件管理和操作
+
+### 用户功能
+
+- **文件上传**：支持拖拽上传、多文件上传、粘贴上传（Ctrl+V）
+- **文件管理**：文件列表展示、文件预览、文件下载
+- **用户账户**：用户注册、登录、密码修改
+- **进度跟踪**：实时显示上传进度，支持 WebSocket 进度推送
+- **主题切换**：支持亮色/暗色/跟随系统主题模式
+
+### 管理员功能
+
+- **配置管理**：Bot Token 配置、系统设置管理
+- **用户管理**：用户列表查看、用户权限管理
+- **文件管理**：所有文件统一管理、文件删除
+- **数据备份**：数据库备份功能
+- **机器人保活**：Telegram Bot 保活配置
+- **WebDAV 配置**：WebDAV 服务开关和权限配置
+- **系统监控**：实时查看系统状态和运行情况
 
 ### 技术特性
 
 - ⚡ **高性能**：基于 Java 17+ 开发，确保稳定性和性能
 - 🐳 **容器化**：提供 Docker 支持，简化部署和维护流程
-- 💾 **数据持久化**：支持数据持久化存储，确保数据安全
+- 💾 **数据持久化**：使用 SQLite 数据库，支持数据持久化存储
 - 🔄 **API 支持**：提供完整的 RESTful API 接口
-- 🌐 **WebDAV 支持**：提供基本的 WebDAV 接口
+- 🔒 **安全认证**：基于 Sa-Token 的用户认证和权限管理
+- 📱 **响应式设计**：支持桌面端和移动端访问
+- 🌐 **WebDAV 协议**：完整的 WebDAV 协议实现，支持文件操作
 
 ## 快速开始
 
@@ -301,3 +323,7 @@ server {
 - 🐛 提交 Issue 或 Pull Request
 
 您的支持是项目持续发展的动力！
+
+### Star 趋势
+
+[![Star History Chart](https://api.star-history.com/svg?repos=SkyDependence/tgDrive&type=Date)](https://star-history.com/#SkyDependence/tgDrive&Date)

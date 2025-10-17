@@ -230,6 +230,7 @@ const handleChangePassword = async () => {
         localStorage.removeItem('token')
         localStorage.removeItem('role')
         localStorage.removeItem('userId')
+        localStorage.removeItem('tokenExpireAt')
         window.location.href = '/login'
       }).catch(() => {
         // 用户选择稍后登录

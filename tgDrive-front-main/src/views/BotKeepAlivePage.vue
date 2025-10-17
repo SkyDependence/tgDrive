@@ -102,7 +102,7 @@ import {
   VideoPlay, 
   VideoPause 
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 // 响应式数据
 const taskRunning = ref(false)
@@ -135,7 +135,7 @@ const updateLastUpdateTime = () => {
 
 const getTaskStatus = async () => {
   try {
-    const response = await axios.get('/api/bot/keep-alive/status')
+    const response = await request.get('/bot/keep-alive/status')
     if (response.data.code === 1) {
       taskRunning.value = response.data.data === '运行中'
       updateLastUpdateTime()
@@ -149,7 +149,7 @@ const getTaskStatus = async () => {
 const sendKeepAliveMessage = async () => {
   sendLoading.value = true
   try {
-    const response = await axios.post('/api/bot/keep-alive/send')
+    const response = await request.post('/bot/keep-alive/send')
     if (response.data.code === 1) {
       ElMessage.success('保活消息发送成功')
       updateLastUpdateTime()
@@ -177,7 +177,7 @@ const startKeepAliveTask = async () => {
     )
     
     startLoading.value = true
-    const response = await axios.post('/api/bot/keep-alive/start')
+    const response = await request.post('/bot/keep-alive/start')
     if (response.data.code === 1) {
       ElMessage.success('定时保活任务启动成功')
       await getTaskStatus()
@@ -207,7 +207,7 @@ const stopKeepAliveTask = async () => {
     )
     
     stopLoading.value = true
-    const response = await axios.post('/api/bot/keep-alive/stop')
+    const response = await request.post('/bot/keep-alive/stop')
     if (response.data.code === 1) {
       ElMessage.success('定时保活任务停止成功')
       await getTaskStatus()

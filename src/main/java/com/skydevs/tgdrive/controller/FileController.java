@@ -40,6 +40,12 @@ public class FileController {
         return CompletableFuture.supplyAsync(() -> Result.success(fileStorageService.getUploadFile(multipartFile, request, userId)));
     }
 
+    @SaCheckLogin
+    @GetMapping("/upload/permission-check")
+    public Result<String> checkUploadPermission() {
+        return Result.success("OK");
+    }
+
     /**
      * 获取文件列表
      * @param page 页码

@@ -66,28 +66,17 @@ jobs:
       #  上架售卖区 喵~
       # ============================================
       # 第七步：在“珍宝展览馆”里创建展台
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and Upload Release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-
-      # 第八步：把我们做好的“豪华罐头”放到展台上！
-      - name: Upload Release Asset (JAR)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/app.jar
-          asset_name: tgDrive-${{ github.ref_name }}.jar
-          asset_content_type: application/java-archive
+          # 我们要上传的展品列表！
+          artifacts: "./target/app.jar"
+          # 给展品起个好听的名字喵！
+          artifactName: tgDrive-${{ github.ref_name }}.jar
+          # 机器人的身份令牌
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 开启自动生成小作文的魔法！
+          generateReleaseNotes: true
 
       # ============================================
       #  Docker豪华飞船生产线 喵~

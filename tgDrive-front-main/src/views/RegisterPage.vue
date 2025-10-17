@@ -179,7 +179,8 @@ const handleRegister = async () => {
         role: userLogin.role,
         userId: userLogin.UserId,
         username: userLogin.username,
-        email: userLogin.email
+        email: userLogin.email,
+        tokenExpireAt: userLogin.expireAt ?? null
       })
       
       ElMessage.success('注册成功，已自动登录')

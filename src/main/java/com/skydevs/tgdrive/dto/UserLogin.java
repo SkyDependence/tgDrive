@@ -15,4 +15,5 @@ public class UserLogin {
     private String role;
     private String username;
     private String email;
+    private Long expireAt;
 }

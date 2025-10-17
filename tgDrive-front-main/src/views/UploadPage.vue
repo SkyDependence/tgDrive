@@ -1,5 +1,17 @@
 <template>
   <div class="page-container">
+    <div v-if="connectionLost" class="connection-alert">
+      <el-alert
+        type="error"
+        show-icon
+        :closable="false"
+        title="实时进度连接已断开"
+        description="请检查网络状态，然后点击“重新连接”恢复实时进度。"
+      />
+      <div class="connection-alert-actions">
+        <el-button type="primary" size="small" @click="retryWebSocket">重新连接</el-button>
+      </div>
+    </div>
     <el-row :gutter="20">
       <!-- Left Column: Upload and Progress -->
       <el-col :xs="24" :sm="24" :md="14" :lg="14" :xl="14">
@@ -21,6 +33,7 @@
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
             :file-list="selectedFiles"
+            :disabled="isUploading"
             class="upload-dragger"
           >
             <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
@@ -114,10 +127,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import { ElMessage, UploadFile, UploadFiles, UploadRawFile, UploadInstance } from 'element-plus';
+import { ElMessage, UploadFile, UploadFiles, UploadInstance } from 'element-plus';
 import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
+import request from '@/utils/request';
 
 // --- Interfaces ---
 interface UploadedFile {
@@ -151,17 +164,39 @@ const uploadedFiles = ref<UploadedFile[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref<ProgressItem[]>([]);
 const websocket = ref<WebSocket | null>(null);
+const manualClosedSockets = new WeakSet<WebSocket>();
+const reconnectTimer = ref<number | null>(null);
+const heartbeatTimer = ref<number | null>(null);
+const heartbeatTimeoutTimer = ref<number | null>(null);
+const reconnectAttempts = ref(0);
+const maxReconnectAttempts = 10;
+const reconnectDelay = ref(1000); // 初始重连延迟 1 秒
+const isPageVisible = ref(true);
+const CONCURRENCY_LIMIT = 3;
+const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_TIMEOUT = 15000;
+const connectionLost = ref(false);
+const reconnectFailureNotified = ref(false);
 
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
 );
 
 // --- Methods ---
-const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
+const handleFileChange = (_file: UploadFile, fileList: UploadFiles) => {
+  if (isUploading.value) {
+    ElMessage.warning('当前正在上传，请稍后再添加文件');
+    // 保持已有列表不变
+    selectedFiles.value = [...selectedFiles.value];
+    return;
+  }
   selectedFiles.value = fileList;
 };
 
-const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
+const handleFileRemove = (_file: UploadFile, fileList: UploadFiles) => {
+  if (isUploading.value) {
+    return;
+  }
   selectedFiles.value = fileList;
 };
 
@@ -169,6 +204,16 @@ const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
 const handleUpload = async () => {
   if (selectedFiles.value.length === 0) {
     ElMessage.warning('请先选择文件');
+    return;
+  }
+
+  try {
+    await request.get('/upload/permission-check');
+  } catch (error: any) {
+    const message = error?.response?.data?.msg || error?.message;
+    if (message && message !== '登录状态已过期，请重新登录') {
+      ElMessage.error(message);
+    }
     return;
   }
 
@@ -182,15 +227,23 @@ const handleUpload = async () => {
     server: { percentage: 0, currentChunk: 0, totalChunks: 0, status: 'waiting' },
   }));
 
-  for (const file of selectedFiles.value) {
-    const progressItem = uploadProgress.value.find(p => p.uid === file.uid);
-    if (!progressItem) continue;
+  const queue = [...selectedFiles.value];
+
+  const runNext = async (): Promise<void> => {
+    const nextFile = queue.shift();
+    if (!nextFile) return;
+
+    const progressItem = uploadProgress.value.find(p => p.uid === nextFile.uid);
+    if (!progressItem) {
+      await runNext();
+      return;
+    }
 
     try {
       const formData = new FormData();
-      formData.append('file', file.raw as File);
+      formData.append('file', nextFile.raw as File);
 
-      const response = await axios.post('/api/upload', formData, {
+      const response = await request.post('/upload', formData, {
         timeout: 21600000,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -208,49 +261,198 @@ const handleUpload = async () => {
         throw new Error(msg || '上传响应错误');
       }
     } catch (error: any) {
+      if (error?.message === '登录状态已过期，请重新登录') {
+        progressItem.client.status = 'exception';
+        throw error;
+      }
       progressItem.client.status = 'exception';
-      ElMessage.error(`${file.name} 上传失败: ${error.message}`);
+      ElMessage.error(`${nextFile.name} 上传失败: ${error.message}`);
+    } finally {
+      if (queue.length > 0) {
+        await runNext();
+      }
     }
-  }
+  };
+
+  const workerCount = Math.min(CONCURRENCY_LIMIT, queue.length);
+  const workers = Array.from({ length: workerCount }, () => runNext());
+  const results = await Promise.allSettled(workers);
+
+  const hadAuthError = results.some((result) => result.status === 'rejected' && result.reason?.message === '登录状态已过期，请重新登录');
 
   isUploading.value = false;
   selectedFiles.value = [];
   uploadRef.value?.clearFiles();
+
+  if (hadAuthError) {
+    return;
+  }
 };
 
 const connectWebSocket = () => {
+  // 清理之前的连接
+  if (websocket.value) {
+    manualClosedSockets.add(websocket.value);
+    websocket.value.close();
+  }
+
+  // 清理定时器
+  if (reconnectTimer.value) {
+    clearTimeout(reconnectTimer.value);
+    reconnectTimer.value = null;
+  }
+  if (heartbeatTimer.value) {
+    clearInterval(heartbeatTimer.value);
+    heartbeatTimer.value = null;
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = `${protocol}://${window.location.host}/ws/upload-progress`;
-  websocket.value = new WebSocket(wsUrl);
 
-  websocket.value.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      const progressItem = uploadProgress.value.find(p => p.name === data.fileName);
-      if (!progressItem) return;
+  try {
+    websocket.value = new WebSocket(wsUrl);
 
-      if (data.type === 'upload_progress') {
-        progressItem.server.status = 'uploading';
-        const totalChunks = data.total_chunks || data.totalChunks;
-        const currentChunk = data.current_chunk || data.currentChunk;
-        if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
-        if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
-        if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
-      } else if (data.type === 'upload_complete') {
-        progressItem.server.status = 'success';
-        progressItem.server.percentage = 100;
-      } else if (data.type === 'upload_error') {
-        progressItem.server.status = 'exception';
-        ElMessage.error(`${data.fileName} 传输到Telegram失败: ${data.error}`);
+    websocket.value.onopen = () => {
+      console.log('WebSocket 连接已建立');
+      reconnectAttempts.value = 0;
+      reconnectDelay.value = 1000; // 重置重连延迟
+      reconnectFailureNotified.value = false;
+      connectionLost.value = false;
+      startHeartbeat(); // 开始心跳
+    };
+
+    websocket.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // 如果是心跳响应，忽略
+        if (data.type === 'pong') {
+          clearHeartbeatTimeout();
+          return;
+        }
+
+        const progressItem = uploadProgress.value.find(p => p.name === data.fileName);
+        if (!progressItem) return;
+
+        if (data.type === 'upload_progress') {
+          progressItem.server.status = 'uploading';
+          const totalChunks = data.total_chunks || data.totalChunks;
+          const currentChunk = data.current_chunk || data.currentChunk;
+          if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
+          if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
+          if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
+        } else if (data.type === 'upload_complete') {
+          progressItem.server.status = 'success';
+          progressItem.server.percentage = 100;
+        } else if (data.type === 'upload_error') {
+          progressItem.server.status = 'exception';
+          ElMessage.error(`${data.fileName} 传输到Telegram失败: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('WebSocket message parse error:', error);
       }
-    } catch (error) {
-      console.error('WebSocket message parse error:', error);
-    }
-  };
+    };
 
-  websocket.value.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
+    websocket.value.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    websocket.value.onclose = (event) => {
+      console.log('WebSocket 连接已关闭', event);
+      stopHeartbeat();
+
+      const closedSocket = (event?.target || null) as WebSocket | null;
+      if (closedSocket && manualClosedSockets.has(closedSocket)) {
+        manualClosedSockets.delete(closedSocket);
+        return;
+      }
+
+      // 只在页面可见且未达到最大重连次数时进行重连
+      if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
+        reconnectAttempts.value++;
+        console.log(`尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`);
+
+        reconnectTimer.value = window.setTimeout(() => {
+          connectWebSocket();
+        }, reconnectDelay.value);
+
+        // 使用指数退避策略，最大延迟 30 秒
+        reconnectDelay.value = Math.min(reconnectDelay.value * 2, 30000);
+      } else if (isPageVisible.value && !reconnectFailureNotified.value) {
+        reconnectFailureNotified.value = true;
+        connectionLost.value = true;
+        ElMessage.error('实时连接多次尝试失败，请检查网络后点击“重新连接”按钮。');
+      }
+    };
+  } catch (error) {
+    console.error('创建 WebSocket 连接失败:', error);
+    // 尝试重连
+    if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
+      reconnectAttempts.value++;
+      reconnectTimer.value = window.setTimeout(() => {
+        connectWebSocket();
+      }, reconnectDelay.value);
+      reconnectDelay.value = Math.min(reconnectDelay.value * 2, 30000);
+    } else if (isPageVisible.value && !reconnectFailureNotified.value) {
+      reconnectFailureNotified.value = true;
+      connectionLost.value = true;
+      ElMessage.error('实时连接多次尝试失败，请检查网络后点击“重新连接”按钮。');
+    }
+  }
+};
+
+const retryWebSocket = () => {
+  if (reconnectTimer.value) {
+    clearTimeout(reconnectTimer.value);
+    reconnectTimer.value = null;
+  }
+  reconnectAttempts.value = 0;
+  reconnectDelay.value = 1000;
+  connectionLost.value = false;
+  reconnectFailureNotified.value = false;
+  connectWebSocket();
+};
+
+// 心跳机制
+const clearHeartbeatTimeout = () => {
+  if (heartbeatTimeoutTimer.value) {
+    clearTimeout(heartbeatTimeoutTimer.value);
+    heartbeatTimeoutTimer.value = null;
+  }
+};
+
+const scheduleHeartbeatTimeout = () => {
+  clearHeartbeatTimeout();
+  heartbeatTimeoutTimer.value = window.setTimeout(() => {
+    console.warn('WebSocket 心跳超时，尝试重新连接');
+    if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
+      websocket.value.close();
+    }
+  }, HEARTBEAT_TIMEOUT);
+};
+
+const sendHeartbeat = () => {
+  if (websocket.value && websocket.value.readyState === WebSocket.OPEN) {
+    websocket.value.send(JSON.stringify({ type: 'ping' }));
+    scheduleHeartbeatTimeout();
+  } else {
+    clearHeartbeatTimeout();
+  }
+};
+
+const startHeartbeat = () => {
+  stopHeartbeat();
+  sendHeartbeat();
+  heartbeatTimer.value = window.setInterval(() => {
+    sendHeartbeat();
+  }, HEARTBEAT_INTERVAL); // 每 30 秒发送一次心跳
+};
+
+const stopHeartbeat = () => {
+  if (heartbeatTimer.value) {
+    clearInterval(heartbeatTimer.value);
+    heartbeatTimer.value = null;
+  }
+  clearHeartbeatTimeout();
 };
 
 // --- Utility and Lifecycle ---
@@ -258,12 +460,12 @@ const goToFileList = () => router.push('/fileList');
 const copyToClipboard = (text: string, message: string) => {
   navigator.clipboard.writeText(text).then(() => ElMessage.success(message));
 };
-const copyMarkdown = (file: UploadedFile) => copyToClipboard(`[${file.fileName}](${file.downloadLink})`, 'Markdown 格式已复制');
+const copyMarkdown = (file: UploadedFile) => copyToClipboard(`![${file.fileName}](${file.downloadLink})`, 'Markdown 格式已复制');
 const copyLink = (file: UploadedFile) => copyToClipboard(file.downloadLink, '下载链接已复制');
 const openLink = (url: string) => window.open(url, '_blank');
 
 const batchCopyMarkdown = () => {
-  const text = uploadedFiles.value.map(f => `[${f.fileName}](${f.downloadLink})`).join('\n');
+  const text = uploadedFiles.value.map(f => `![${f.fileName}](${f.downloadLink})`).join('\n');
   copyToClipboard(text, `已批量复制 ${uploadedFiles.value.length} 个 Markdown 链接`);
 };
 
@@ -275,6 +477,10 @@ const batchCopyLinks = () => {
 const handlePaste = (event: ClipboardEvent) => {
   const items = event.clipboardData?.items;
   if (!items) return;
+  if (isUploading.value) {
+    ElMessage.warning('当前正在上传，请稍后再粘贴文件');
+    return;
+  }
   const files: File[] = [];
   for (let i = 0; i < items.length; i++) {
     if (items[i].kind === 'file') {
@@ -297,12 +503,75 @@ const handlePaste = (event: ClipboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('paste', handlePaste);
+
+  // 页面可见性检测
+  const handleVisibilityChange = () => {
+    isPageVisible.value = !document.hidden;
+    if (!document.hidden) {
+      console.log('页面显示，检查 WebSocket 连接状态');
+      if (connectionLost.value) {
+        return;
+      }
+      if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
+        connectWebSocket();
+      }
+    } else {
+      console.log('页面隐藏，保持 WebSocket 连接');
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // 添加窗口焦点事件监听
+  const handleFocus = () => {
+    if (connectionLost.value) {
+      console.log('窗口获得焦点，但连接已标记为失败，等待用户手动重连');
+      return;
+    }
+    const autoReconnecting = reconnectTimer.value !== null || reconnectAttempts.value > 0;
+    if (autoReconnecting) {
+      console.log('窗口获得焦点，自动重连进行中，跳过额外检查');
+      return;
+    }
+    if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
+      console.log('窗口获得焦点，尝试恢复 WebSocket 连接');
+      connectWebSocket();
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+
   connectWebSocket();
+
+  // 保存事件监听器以便清理
+  (window as any).__visibilityHandler = handleVisibilityChange;
+  (window as any).__focusHandler = handleFocus;
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('paste', handlePaste);
+
+  // 清理页面可见性监听
+  if ((window as any).__visibilityHandler) {
+    document.removeEventListener('visibilitychange', (window as any).__visibilityHandler);
+    delete (window as any).__visibilityHandler;
+  }
+
+  // 清理焦点事件监听
+  if ((window as any).__focusHandler) {
+    window.removeEventListener('focus', (window as any).__focusHandler);
+    delete (window as any).__focusHandler;
+  }
+
+  // 清理定时器
+  if (reconnectTimer.value) {
+    clearTimeout(reconnectTimer.value);
+  }
+  stopHeartbeat();
+
+  // 关闭 WebSocket 连接
   if (websocket.value) {
+    manualClosedSockets.add(websocket.value);
     websocket.value.close();
   }
 });
@@ -316,6 +585,16 @@ onBeforeUnmount(() => {
 .page-container {
   padding: 20px;
   height: 100%;
+}
+
+.connection-alert {
+  margin-bottom: 16px;
+}
+
+.connection-alert-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .content-card {
@@ -375,7 +654,7 @@ onBeforeUnmount(() => {
 
 .file-size-info {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
   flex-shrink: 0;
 }
 
@@ -501,7 +780,7 @@ html.dark .uploaded-file-item {
 .dual-progress-container {
   margin-top: 10px;
   padding: 15px;
-  background: var(--bg-color-light);
+  background: var(--hover-bg-color);
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
@@ -556,7 +835,7 @@ html.dark .uploaded-file-item {
 
 .chunk-info {
   font-size: 12px;
-  color: var(--text-color-light);
+  color: var(--el-text-color-regular);
   margin-top: 4px;
   text-align: center;
 }

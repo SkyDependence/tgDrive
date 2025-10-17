@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.util.UriUtils;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
@@ -103,7 +104,7 @@ public class WebDavFileServiceImpl implements WebDavFileService {
     @Override
     public ResponseEntity<StreamingResponseBody> downloadByWebDav(String path) {
         try {
-            FileInfo fileInfo = fileMapper.getFileByWebdavPath(path);
+            FileInfo fileInfo = getFileByWebdavPathWithFallback(path);
             if (fileInfo == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -117,7 +118,14 @@ public class WebDavFileServiceImpl implements WebDavFileService {
     @Override
     public void deleteByWebDav(String path) {
         try {
-            fileMapper.deleteFileByWebDav(path);
+            // 尝试删除文件，如果找不到则尝试解码后的路径
+            FileInfo file = getFileByWebdavPathWithFallback(path);
+            if (file != null) {
+                fileMapper.deleteFileByWebDav(file.getWebdavPath());
+            } else {
+                // 如果还是找不到，尝试原始路径
+                fileMapper.deleteFileByWebDav(path);
+            }
         } catch (Exception e) {
             log.error("文件删除失败", e);
             throw new RuntimeException("文件删除失败", e);
@@ -152,5 +160,55 @@ public class WebDavFileServiceImpl implements WebDavFileService {
             res.add(file);
         }
         return res;
+    }
+
+    /**
+     * Description:
+     * 尝试通过WebDAV路径查找文件，支持URL编码和大小写不敏感
+     * @author SkyDev
+     * @date 2025-09-01 10:00:49
+     * @param path WebDAV路径
+     * @return 文件信息，如果找不到则返回null
+     */
+    private FileInfo getFileByWebdavPathWithFallback(String path) {
+        // 首先尝试原始路径
+        FileInfo file = fileMapper.getFileByWebdavPath(path);
+        if (file != null) {
+            return file;
+        }
+        
+        // 如果找不到，尝试URL解码后的路径
+        try {
+            String decodedPath = UriUtils.decode(path, "UTF-8");
+            if (!decodedPath.equals(path)) {
+                file = fileMapper.getFileByWebdavPath(decodedPath);
+                if (file != null) {
+                    log.info("Found file using decoded path: {} -> {}", path, decodedPath);
+                    return file;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to decode URL: {}", path);
+        }
+        
+        // 如果仍然找不到，尝试不区分大小写的查找
+        try {
+            // 获取父目录路径
+            String parentPath = path.substring(0, path.lastIndexOf('/') + 1);
+            String fileName = path.substring(path.lastIndexOf('/') + 1);
+            
+            // 获取父目录下的所有文件
+            List<FileInfo> filesInDir = fileMapper.getFilesByPathPrefix(parentPath);
+            for (FileInfo f : filesInDir) {
+                if (f.getWebdavPath().equalsIgnoreCase(path)) {
+                    log.info("Found file using case-insensitive match: {}", path);
+                    return f;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to perform case-insensitive search for: {}", path);
+        }
+        
+        return null;
     }
 }
