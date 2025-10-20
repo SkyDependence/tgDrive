@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS upload_tasks (
 );
 
 -- 创建索引
-CREATE INDEX idx_uploader_tasks_user_id ON upload_tasks (user_id);
-CREATE INDEX idx_file_hash ON upload_tasks (file_hash);
-CREATE INDEX idx_status ON upload_tasks (status);
-CREATE INDEX idx_expires_at ON upload_tasks (expires_at);
-CREATE INDEX uk_hash_user ON upload_tasks (file_hash, user_id);
+CREATE INDEX IF NOT EXISTS idx_uploader_tasks_user_id ON upload_tasks (user_id);
+CREATE INDEX IF NOT EXISTS idx_file_hash ON upload_tasks (file_hash);
+CREATE INDEX IF NOT EXISTS idx_status ON upload_tasks (status);
+CREATE INDEX IF NOT EXISTS idx_expires_at ON upload_tasks (expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_hash_user ON upload_tasks (file_hash, user_id);
