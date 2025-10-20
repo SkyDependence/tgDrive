@@ -49,29 +49,34 @@ const formatPercentage = (value: number) => Number(value.toFixed(2));
 
 const totalPercentage = computed(() => {
   const item = props.item;
-  // The success of the server stage is the definitive final state.
-  // This rule must be first to ensure it overrides any other state.
+  const totalChunks = item.server.totalChunks || 0;
+  const completedChunks = Math.min(item.server.currentChunk || 0, totalChunks);
+
+  if (totalChunks > 0) {
+    if (item.server.status === 'success') {
+      return 100;
+    }
+    return formatPercentage((completedChunks / totalChunks) * 100);
+  }
+
+  // 普通上传（没有分块信息）使用“前50%本地、后50%服务器”策略
   if (item.server.status === 'success') {
     return 100;
   }
-  // If the server is uploading, calculate the second half of the progress.
   if (item.server.status === 'uploading') {
-    return formatPercentage(50 + (item.server.percentage * 0.5));
+    return formatPercentage(50 + item.server.percentage * 0.5);
   }
-  // If the client has finished and the server is waiting, we are exactly at the halfway mark.
   if (item.client.status === 'success') {
     return 50;
   }
-  // If the client is uploading, calculate the first half of the progress.
   if (item.client.status === 'uploading') {
     return formatPercentage(item.client.percentage * 0.5);
   }
-  // Handle failure cases to show where it stopped.
   if (item.client.status === 'exception') {
     return formatPercentage(item.client.percentage * 0.5);
   }
   if (item.server.status === 'exception') {
-    return formatPercentage(50 + (item.server.percentage * 0.5));
+    return formatPercentage(50 + item.server.percentage * 0.5);
   }
   return 0;
 });
@@ -96,8 +101,13 @@ const isInProgress = computed(() => {
 
 const stageText = computed(() => {
   const item = props.item;
+  const totalChunks = item.server.totalChunks || 0;
+  const completedChunks = Math.min(item.server.currentChunk || 0, totalChunks);
+
   if (item.server.status === 'success') {
-    return '✅ 上传完成';
+    return totalChunks > 0
+      ? `✅ 上传完成 (${totalChunks}/${totalChunks} 块)`
+      : '✅ 上传完成';
   }
   if (item.client.status === 'exception') {
     return `❌ 阶段1失败: 上传到服务器时出错`;
@@ -105,13 +115,19 @@ const stageText = computed(() => {
   if (item.server.status === 'exception') {
     return `❌ 阶段2失败: 从服务器传输时出错`;
   }
+  if (totalChunks > 0) {
+    return `上传进度：${completedChunks}/${totalChunks} 块`;
+  }
   if (item.server.status === 'uploading') {
-    return `阶段2: 传输到Telegram (${item.server.currentChunk}/${item.server.totalChunks}块)`;
+    return `阶段2: 传输到服务器 (${formatPercentage(item.server.percentage)}%)`;
   }
   if (item.client.status === 'success') {
-    return '阶段2: 等待传输...';
+    return '阶段2: 等待服务器处理...';
   }
-  return `阶段1: 上传到服务器 (${formatFileSize(item.client.loaded)})`;
+  if (item.client.status === 'uploading') {
+    return `阶段1: 上传到服务器 (${formatFileSize(item.client.loaded)})`;
+  }
+  return '等待上传';
 });
 
 // --- Utility ---
