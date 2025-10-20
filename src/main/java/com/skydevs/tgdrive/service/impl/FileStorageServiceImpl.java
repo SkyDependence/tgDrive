@@ -146,6 +146,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             Message message = sendDocument(inputStream, uploadFilename);
             String fileID = StringUtil.extractFileId(message);
+            Integer messageID=message.messageId();
 
             // 发送上传完成进度
             uploadProgressWebSocketHandler.sendUploadProgress(filename, 100, 1, 1);
@@ -299,6 +300,43 @@ public class FileStorageServiceImpl implements FileStorageService {
      */
     @Override
     public PageResult getFileList(int page, int size, String keyword, Long userId, String role) {
+//        todo 数据库丢了会很麻烦，1，文件无法展示，虽然现有的也图片展示也没什么用，但是无法获取图床链接还是很麻烦 2，不清楚webdav的同步机制是如何做的，核心问题问题在于fileinfo中是如何定义图片的链接，也就是从tg中获取文件，tg文件列表是否具备分级结构？
+        /**
+         * 1,假设数据库文件丢失
+         * （1）真实文件： tg、webdav的本地挂载
+         * （2）层级信息： 数据库、webdav的本地挂载
+         *
+         *
+         *
+         *   核心问题，备份文件的保存，无论如何这里只能解决webDAV的同步问题，如果层级信息本身无法保存，那么就无从恢复，
+         *   想法1：
+         *   场景： 数据库文件丢失，存在tg频道的真实文件，无webDAV
+         *   使用第三方保存，例如github仓库，启动时恢复数据库
+         *   场景2： 数据库文件丢失，tg频道未丢失，webDAV存在，
+         *   webDAV同步至频道时的文件对应关系
+         *   场景3： 数据库文件丢失，tg频道未丢失，webDAV未丢失，
+         *   webDAV同步至频道时的文件对应关系
+         *
+         *
+
+         *
+         *   目前疑问：
+         *   1，webDAV如何同步
+         *   2，github设置定时任务同步仓库文件
+         *
+         *          *
+         *          * 1，保证不同名，如果同名也不要紧，只要在tg频道中搜索同名文件即可
+         *              问题： 挂载多次会导致上传多次，可能会触发tg频道的文件空间限制
+         *          * 2，
+         *          *
+         *
+         *   此外：
+         *
+         *  1，项目简介里的核心优势都是如何实现的？
+         *
+         *
+         */
+
         PageHelper.startPage(page, size);
         List<FileInfo> fileInfoList = fileMapper.getFilteredFiles(keyword, userId, role);
         PageInfo<FileInfo> pageInfo = new PageInfo<>(fileInfoList);

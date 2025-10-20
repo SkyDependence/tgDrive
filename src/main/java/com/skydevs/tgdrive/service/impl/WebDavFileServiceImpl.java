@@ -43,10 +43,12 @@ public class WebDavFileServiceImpl implements WebDavFileService {
                 throw new FailedToGetSizeException();
             }
             String fileName = path.substring(path.lastIndexOf('/') + 1);
+
             String fileId = fileStorageService.uploadFile(inputStream, fileName, size);
             List<FileInfo> fileInfos = fileMapper.getFilesByPathPrefix(path);
             for (FileInfo fileInfo : fileInfos) {
                 fileMapper.deleteFile(fileInfo.getFileId());
+                telegramBotService.deleteFile(fileInfo.getMessageId());
             }
             // 提取文件夹名字（如果有文件夹的话）
             List<String> dirPaths = StringUtil.getDirsPathFromPath(path);

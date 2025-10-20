@@ -2,8 +2,13 @@ package com.skydevs.tgdrive.service.impl;
 
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.File;
+import com.pengrad.telegrambot.model.request.ParseMode;
+import com.pengrad.telegrambot.model.request.ReplyKeyboardRemove;
+import com.pengrad.telegrambot.request.DeleteMessage;
+import com.pengrad.telegrambot.request.EditMessageText;
 import com.pengrad.telegrambot.request.GetFile;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.response.BaseResponse;
 import com.pengrad.telegrambot.response.GetFileResponse;
 import com.skydevs.tgdrive.dto.ConfigForm;
 import com.skydevs.tgdrive.exception.bot.BotNotSetException;
@@ -103,6 +108,16 @@ public class TelegramBotServiceImpl implements TelegramBotService {
     private void checkBotInitialized() {
         if (!isInitialized()) {
             throw new BotNotSetException("Telegram Bot 未初始化");
+        }
+    }
+
+    @Override
+    public void deleteFile(Integer fileId) {
+        DeleteMessage deleteMessage = new DeleteMessage(chatId, fileId);
+        BaseResponse response = bot.execute(deleteMessage);
+
+        if (!response.isOk()){
+            log.error("删除原文件失败: {}， messageId: {}", response.description(), fileId);
         }
     }
 }

@@ -48,10 +48,13 @@ public class BackupServiceImpl implements BackupService {
             stmt.executeUpdate(mergeSql);
 
             backendConn.commit(); // 提交事务
+
+            stmt.execute("DETACH DATABASE tempDb;");
         } catch (Exception e) {
             throw new RuntimeException("数据库导入失败", e);
         } finally {
-            Files.deleteIfExists(tempFile.toPath()); // 删除临时文件
+            boolean delete = Files.deleteIfExists(tempFile.toPath());// 删除临时文件
+            System.out.println("删除临时文件：" + delete);
         }
     }
 }

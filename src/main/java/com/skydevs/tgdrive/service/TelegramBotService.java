@@ -64,4 +64,11 @@ public interface TelegramBotService {
      * @return 是否已初始化
      */
     boolean isInitialized();
+
+
+    /**
+     * 删除文件
+     * @param fileId 文件ID
+     */
+    void deleteFile(Integer fileId);
 }
