@@ -71,6 +71,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/webdav': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+        secure: false,
+      },
       '/ws': {
         target: 'ws://localhost:8085',
         ws: true,

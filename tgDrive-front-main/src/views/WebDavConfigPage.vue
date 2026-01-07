@@ -8,51 +8,36 @@
         </div>
       </template>
 
-      <el-form
-        ref="configFormRef"
-        :model="configForm"
-        :rules="configRules"
-        label-width="140px"
-        class="config-form"
-      >
+      <el-form ref="configFormRef" :model="configForm" :rules="configRules" label-width="140px" class="config-form">
         <!-- 基础设置 -->
         <el-divider content-position="left">
-          <el-icon><Setting /></el-icon>
+          <el-icon>
+            <Setting />
+          </el-icon>
           基础设置
         </el-divider>
 
         <el-form-item label="启用WebDAV" prop="enabled">
-          <el-switch
-            v-model="configForm.enabled"
-            active-text="启用"
-            inactive-text="禁用"
-            @change="handleEnabledChange"
-          />
+          <el-switch v-model="configForm.enabled" active-text="启用" inactive-text="禁用" @change="handleEnabledChange" />
           <div class="form-tip">启用后可通过WebDAV协议访问文件</div>
         </el-form-item>
 
         <el-form-item label="需要认证" prop="requireAuth">
-          <el-switch
-            v-model="configForm.requireAuth"
-            active-text="需要"
-            inactive-text="不需要"
-            :disabled="!configForm.enabled"
-          />
+          <el-switch v-model="configForm.requireAuth" active-text="需要" inactive-text="不需要"
+            :disabled="!configForm.enabled" />
           <div class="form-tip">是否需要用户名密码认证（正在施工中...）</div>
         </el-form-item>
 
         <!-- 权限设置 -->
         <el-divider content-position="left">
-          <el-icon><User /></el-icon>
+          <el-icon>
+            <User />
+          </el-icon>
           权限设置
         </el-divider>
 
         <el-form-item label="允许的角色" prop="allowedRoles">
-          <el-select
-            v-model="configForm.allowedRoles"
-            placeholder="请选择允许访问的用户角色"
-            :disabled="!configForm.enabled"
-          >
+          <el-select v-model="configForm.allowedRoles" placeholder="请选择允许访问的用户角色" :disabled="!configForm.enabled">
             <el-option label="仅管理员" value="admin" />
             <el-option label="访客用户" value="visitor" />
           </el-select>
@@ -61,73 +46,73 @@
 
         <!-- 功能设置 -->
         <el-divider content-position="left">
-          <el-icon><Tools /></el-icon>
+          <el-icon>
+            <Tools />
+          </el-icon>
           功能设置
         </el-divider>
 
         <el-form-item label="允许创建目录" prop="allowMkdir">
-          <el-switch
-            v-model="configForm.allowMkdir"
-            active-text="允许"
-            inactive-text="禁止"
-            :disabled="!configForm.enabled"
-          />
+          <el-switch v-model="configForm.allowMkdir" active-text="允许" inactive-text="禁止"
+            :disabled="!configForm.enabled" />
           <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许删除文件" prop="allowDelete">
-          <el-switch
-            v-model="configForm.allowDelete"
-            active-text="允许"
-            inactive-text="禁止"
-            :disabled="!configForm.enabled"
-          />
+          <el-switch v-model="configForm.allowDelete" active-text="允许" inactive-text="禁止"
+            :disabled="!configForm.enabled" />
           <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许移动文件" prop="allowMove">
-          <el-switch
-            v-model="configForm.allowMove"
-            active-text="允许"
-            inactive-text="禁止"
-            :disabled="!configForm.enabled"
-          />
+          <el-switch v-model="configForm.allowMove" active-text="允许" inactive-text="禁止"
+            :disabled="!configForm.enabled" />
           <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="允许复制文件" prop="allowCopy">
-          <el-switch
-            v-model="configForm.allowCopy"
-            active-text="允许"
-            inactive-text="禁止"
-            :disabled="!configForm.enabled"
-          />
+          <el-switch v-model="configForm.allowCopy" active-text="允许" inactive-text="禁止"
+            :disabled="!configForm.enabled" />
           <div class="form-tip">（正在施工中...）</div>
         </el-form-item>
 
         <el-form-item label="配置描述" prop="description">
-          <el-input
-            v-model="configForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入配置描述"
-            :disabled="!configForm.enabled"
-          />
+          <el-input v-model="configForm.description" type="textarea" :rows="3" placeholder="请输入配置描述"
+            :disabled="!configForm.enabled" />
+        </el-form-item>
+
+        <!-- 上传设置 -->
+        <el-divider content-position="left">
+          <el-icon>
+            <Upload />
+          </el-icon>
+          上传设置
+        </el-divider>
+
+        <el-form-item label="默认上传路径" prop="defaultUploadPath">
+          <el-input v-model="configForm.defaultUploadPath" placeholder="/uploads/" />
+          <div class="form-tip">通过网页前端上传的文件将存放在此WebDAV路径下</div>
         </el-form-item>
 
         <!-- 操作按钮 -->
         <el-form-item>
           <div class="button-group">
             <el-button type="primary" @click="saveConfig" :loading="saving">
-              <el-icon><Check /></el-icon>
+              <el-icon>
+                <Check />
+              </el-icon>
               保存配置
             </el-button>
             <el-button @click="resetConfig">
-              <el-icon><Refresh /></el-icon>
+              <el-icon>
+                <Refresh />
+              </el-icon>
               重置
             </el-button>
             <el-button @click="resetToDefault" :loading="resetting">
-              <el-icon><RefreshLeft /></el-icon>
+              <el-icon>
+                <RefreshLeft />
+              </el-icon>
               恢复默认
             </el-button>
           </div>
@@ -142,24 +127,16 @@
           <h3>WebDAV使用说明</h3>
         </div>
       </template>
-      
+
       <div class="usage-content">
-        <el-alert
-          title="WebDAV访问地址"
-          type="info"
-          :closable="false"
-          show-icon
-        >
+        <el-alert title="WebDAV访问地址" type="info" :closable="false" show-icon>
           <template #default>
             <div class="webdav-url">
               <code>{{ webdavUrl }}</code>
-              <el-button
-                size="small"
-                type="primary"
-                link
-                @click="copyUrl"
-              >
-                <el-icon><CopyDocument /></el-icon>
+              <el-button size="small" type="primary" link @click="copyUrl">
+                <el-icon>
+                  <CopyDocument />
+                </el-icon>
                 复制
               </el-button>
             </div>
@@ -200,7 +177,8 @@ import {
   Check,
   Refresh,
   RefreshLeft,
-  CopyDocument
+  CopyDocument,
+  Upload
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -218,7 +196,8 @@ const configForm = reactive({
   allowDelete: true,
   allowMove: true,
   allowCopy: true,
-  description: 'WebDAV服务配置'
+  description: 'WebDAV服务配置',
+  defaultUploadPath: ''
 })
 
 // 表单验证规则
@@ -253,11 +232,11 @@ const loadConfig = async () => {
 // 保存配置
 const saveConfig = async () => {
   if (!configFormRef.value) return
-  
+
   try {
     await configFormRef.value.validate()
     saving.value = true
-    
+
     const response = await request.put('/webdav-config', configForm)
     if (response.data.code === 1) {
       ElMessage.success('配置保存成功')
@@ -291,7 +270,7 @@ const resetToDefault = async () => {
         type: 'warning'
       }
     )
-    
+
     resetting.value = true
     const response = await request.post('/webdav-config/reset')
     if (response.data.code === 1) {
@@ -331,7 +310,7 @@ const handleEnabledChange = (value: boolean) => {
 const copyUrl = async () => {
   const text = webdavUrl.value;
   const message = 'WebDAV地址已复制到剪贴板';
-  
+
   // 优先使用现代的 Clipboard API
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -351,17 +330,17 @@ const copyUrl = async () => {
 const fallbackCopyTextToClipboard = (text: string, message: string) => {
   const textArea = document.createElement('textarea');
   textArea.value = text;
-  
+
   // 避免滚动到底部
   textArea.style.top = '0';
   textArea.style.left = '0';
   textArea.style.position = 'fixed';
   textArea.style.opacity = '0';
-  
+
   document.body.appendChild(textArea);
   textArea.focus();
   textArea.select();
-  
+
   try {
     const successful = document.execCommand('copy');
     if (successful) {
@@ -373,7 +352,7 @@ const fallbackCopyTextToClipboard = (text: string, message: string) => {
     console.error('Fallback copy failed:', err);
     ElMessage.error('复制失败，请手动复制');
   }
-  
+
   document.body.removeChild(textArea);
 }
 
@@ -489,18 +468,18 @@ onMounted(() => {
   .webdav-config-container {
     padding: 12px;
   }
-  
+
   .config-form {
     :deep(.el-form-item__label) {
       width: 100px !important;
     }
   }
-  
+
   .webdav-url {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .button-group {
     display: flex;
     flex-direction: row;
@@ -510,7 +489,7 @@ onMounted(() => {
     width: 100%;
     margin: 0 auto;
   }
-  
+
   .button-group :deep(.el-button) {
     flex: 0 0 auto;
     min-width: 80px;
@@ -519,12 +498,12 @@ onMounted(() => {
     padding: 8px 12px !important;
     white-space: nowrap;
   }
-  
+
   .config-form :deep(.el-form-item:last-child) {
     text-align: center;
     margin-bottom: 0;
   }
-  
+
   .config-form :deep(.el-form-item:last-child .el-form-item__content) {
     justify-content: center;
     margin-left: 0 !important;

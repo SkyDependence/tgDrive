@@ -20,7 +20,7 @@ public class WebDavConfig {
      */
     @NotNull
     private Long id;
-    
+
     /**
      * WebDAV是否启用
      */
@@ -32,7 +32,7 @@ public class WebDavConfig {
      */
     @NotNull
     private Boolean requireAuth;
-    
+
     /**
      * 允许的用户角色（admin/visitor/all）
      */
@@ -44,37 +44,42 @@ public class WebDavConfig {
      */
     @NotNull
     private Boolean allowMkdir;
-    
+
     /**
      * 是否允许删除文件
      */
     @NotNull
     private Boolean allowDelete;
-    
+
     /**
      * 是否允许移动/重命名文件
      */
     @NotNull
     private Boolean allowMove;
-    
+
     /**
      * 是否允许复制文件
      */
     @NotNull
     private Boolean allowCopy;
-    
+
     /**
      * 配置描述
      */
     @NotNull
     private String description;
-    
+
+    /**
+     * 前端上传文件的默认WebDAV路径（存储在settings表中）
+     */
+    private String defaultUploadPath;
+
     /**
      * 创建时间
      */
     @NotNull
     private Long createTime;
-    
+
     /**
      * 更新时间
      */

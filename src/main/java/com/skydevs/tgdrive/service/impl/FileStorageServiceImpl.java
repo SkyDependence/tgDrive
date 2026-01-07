@@ -11,11 +11,13 @@ import com.pengrad.telegrambot.response.SendResponse;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.entity.BigFileInfo;
 import com.skydevs.tgdrive.entity.FileInfo;
+import com.skydevs.tgdrive.constants.SettingConstant;
 import com.skydevs.tgdrive.exception.user.InsufficientPermissionException;
 import com.skydevs.tgdrive.exception.file.UploadFileIsNullException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.result.PageResult;
 import com.skydevs.tgdrive.service.FileStorageService;
+import com.skydevs.tgdrive.service.SettingService;
 import com.skydevs.tgdrive.service.TelegramBotService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
@@ -58,6 +60,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     private TelegramBotService telegramBotService;
 
     @Autowired
+    private SettingService settingService;
+
+    @Autowired
     private UploadProgressWebSocketHandler uploadProgressWebSocketHandler;
 
     @Autowired
@@ -71,6 +76,12 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId) {
+        return getUploadFile(multipartFile, request, userId, null);
+    }
+
+    @Override
+    public UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId,
+            String uploadPath) {
         UploadFile uploadFile = new UploadFile();
         String downloadUrl;
         if (multipartFile != null && !multipartFile.isEmpty()) {
@@ -82,11 +93,32 @@ public class FileStorageServiceImpl implements FileStorageService {
 
                 // 使用FileStorageService上传文件
                 String fileID = uploadFile(inputStream, filename, size);
-                
+
                 // 无论大小，上传流程成功后发送完成消息
                 uploadProgressWebSocketHandler.sendUploadComplete(filename);
 
                 downloadUrl = prefix + "/d/" + fileID;
+
+                // 确定上传路径：优先使用用户指定路径，否则使用默认配置
+                String finalUploadPath;
+                if (uploadPath != null && !uploadPath.trim().isEmpty()) {
+                    finalUploadPath = uploadPath.trim();
+                } else {
+                    finalUploadPath = settingService.getSetting(SettingConstant.DEFAULT_UPLOAD_PATH);
+                }
+                if (finalUploadPath == null || finalUploadPath.isEmpty()) {
+                    finalUploadPath = "/uploads/";
+                }
+                // 确保路径以 / 开头和结尾
+                if (!finalUploadPath.startsWith("/")) {
+                    finalUploadPath = "/" + finalUploadPath;
+                }
+                if (!finalUploadPath.endsWith("/")) {
+                    finalUploadPath = finalUploadPath + "/";
+                }
+
+                // 确保目录记录存在
+                ensureDirectoryExists(finalUploadPath);
 
                 // 保存文件信息到数据库
                 FileInfo fileInfo = FileInfo.builder()
@@ -96,6 +128,7 @@ public class FileStorageServiceImpl implements FileStorageService {
                         .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
                         .downloadUrl(downloadUrl)
                         .fileName(filename)
+                        .webdavPath(finalUploadPath + filename)
                         .userId(userId)
                         .build();
                 fileMapper.insertFile(fileInfo);
@@ -146,7 +179,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             Message message = sendDocument(inputStream, uploadFilename);
             String fileID = StringUtil.extractFileId(message);
-            Integer messageID=message.messageId();
+            Integer messageID = message.messageId();
 
             // 发送上传完成进度
             uploadProgressWebSocketHandler.sendUploadProgress(filename, 100, 1, 1);
@@ -179,7 +212,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 第一遍：读取所有分块数据
             while (true) {
                 int offset = 0;
-                while(offset < MAX_FILE_SIZE) {
+                while (offset < MAX_FILE_SIZE) {
                     int byteRead = bufferedInputStream.read(buffer, offset, MAX_FILE_SIZE - offset);
                     if (byteRead == -1) {
                         break;
@@ -218,7 +251,8 @@ public class FileStorageServiceImpl implements FileStorageService {
                             // 更新进度
                             int completed = completedChunks.incrementAndGet();
                             double percentage = (double) completed / totalChunks.get() * 100;
-                            uploadProgressWebSocketHandler.sendUploadProgress(filename, percentage, completed, totalChunks.get());
+                            uploadProgressWebSocketHandler.sendUploadProgress(filename, percentage, completed,
+                                    totalChunks.get());
 
                             return fileID;
                         } else {
@@ -294,13 +328,15 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     /**
      * 获取文件分页
+     * 
      * @param page 页码
      * @param size 每页数量
      * @return 分页结果
      */
     @Override
     public PageResult getFileList(int page, int size, String keyword, Long userId, String role) {
-//        todo 数据库丢了会很麻烦，1，文件无法展示，虽然现有的也图片展示也没什么用，但是无法获取图床链接还是很麻烦 2，不清楚webdav的同步机制是如何做的，核心问题问题在于fileinfo中是如何定义图片的链接，也就是从tg中获取文件，tg文件列表是否具备分级结构？
+        // todo 数据库丢了会很麻烦，1，文件无法展示，虽然现有的也图片展示也没什么用，但是无法获取图床链接还是很麻烦
+        // 2，不清楚webdav的同步机制是如何做的，核心问题问题在于fileinfo中是如何定义图片的链接，也就是从tg中获取文件，tg文件列表是否具备分级结构？
         /**
          * 1,假设数据库文件丢失
          * （1）真实文件： tg、webdav的本地挂载
@@ -308,31 +344,31 @@ public class FileStorageServiceImpl implements FileStorageService {
          *
          *
          *
-         *   核心问题，备份文件的保存，无论如何这里只能解决webDAV的同步问题，如果层级信息本身无法保存，那么就无从恢复，
-         *   想法1：
-         *   场景： 数据库文件丢失，存在tg频道的真实文件，无webDAV
-         *   使用第三方保存，例如github仓库，启动时恢复数据库
-         *   场景2： 数据库文件丢失，tg频道未丢失，webDAV存在，
-         *   webDAV同步至频道时的文件对应关系
-         *   场景3： 数据库文件丢失，tg频道未丢失，webDAV未丢失，
-         *   webDAV同步至频道时的文件对应关系
+         * 核心问题，备份文件的保存，无论如何这里只能解决webDAV的同步问题，如果层级信息本身无法保存，那么就无从恢复，
+         * 想法1：
+         * 场景： 数据库文件丢失，存在tg频道的真实文件，无webDAV
+         * 使用第三方保存，例如github仓库，启动时恢复数据库
+         * 场景2： 数据库文件丢失，tg频道未丢失，webDAV存在，
+         * webDAV同步至频道时的文件对应关系
+         * 场景3： 数据库文件丢失，tg频道未丢失，webDAV未丢失，
+         * webDAV同步至频道时的文件对应关系
          *
          *
-
          *
-         *   目前疑问：
-         *   1，webDAV如何同步
-         *   2，github设置定时任务同步仓库文件
+         * 
+         * 目前疑问：
+         * 1，webDAV如何同步
+         * 2，github设置定时任务同步仓库文件
          *
-         *          *
-         *          * 1，保证不同名，如果同名也不要紧，只要在tg频道中搜索同名文件即可
-         *              问题： 挂载多次会导致上传多次，可能会触发tg频道的文件空间限制
-         *          * 2，
-         *          *
+         * *
+         * * 1，保证不同名，如果同名也不要紧，只要在tg频道中搜索同名文件即可
+         * 问题： 挂载多次会导致上传多次，可能会触发tg频道的文件空间限制
+         * * 2，
+         * *
          *
-         *   此外：
+         * 此外：
          *
-         *  1，项目简介里的核心优势都是如何实现的？
+         * 1，项目简介里的核心优势都是如何实现的？
          *
          *
          */
@@ -355,6 +391,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     /**
      * 根据文件ID删除文件
+     * 
      * @param fileId 文件ID
      */
     @Override
@@ -391,7 +428,48 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     /**
      * Description:
+     * 确保目录记录存在于数据库中
+     * 用于前端上传时自动创建目录结构
+     * 
+     * @param dirPath 目录路径，如 /uploads/
+     */
+    private void ensureDirectoryExists(String dirPath) {
+        // 检查目录是否已存在
+        FileInfo existingDir = fileMapper.getFileByWebdavPath(dirPath);
+        if (existingDir != null) {
+            return;
+        }
+
+        // 获取目录显示名称（去掉首尾斜杠）
+        String displayName = dirPath;
+        if (displayName.startsWith("/")) {
+            displayName = displayName.substring(1);
+        }
+        if (displayName.endsWith("/")) {
+            displayName = displayName.substring(0, displayName.length() - 1);
+        }
+
+        // 创建目录记录
+        FileInfo dirInfo = FileInfo.builder()
+                .fileId("dir")
+                .fileName(displayName)
+                .downloadUrl("dir")
+                .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
+                .size("0")
+                .fullSize(0L)
+                .webdavPath(dirPath)
+                .dir(true)
+                .userId(null) // 系统目录不关联用户
+                .isPublic(true) // 目录默认公开
+                .build();
+        fileMapper.insertFile(dirInfo);
+        log.info("创建默认上传目录: {}", dirPath);
+    }
+
+    /**
+     * Description:
      * 调用bot上传文件
+     * 
      * @author SkyDev
      * @date 2025-08-01 17:36:24
      * @param fileData 文件
@@ -413,8 +491,8 @@ public class FileStorageServiceImpl implements FileStorageService {
                     return response.message();
                 }
 
-                int exponentialDelay = baseDelay * (int)Math.pow(2, i);
-                log.warn("发送文档失败，正在准备第{}次重试，等待{}毫秒", (i+1), exponentialDelay);
+                int exponentialDelay = baseDelay * (int) Math.pow(2, i);
+                log.warn("发送文档失败，正在准备第{}次重试，等待{}毫秒", (i + 1), exponentialDelay);
                 Thread.sleep(exponentialDelay);
             } catch (Exception e) {
                 if (i == retryCount - 1) {
@@ -422,7 +500,7 @@ public class FileStorageServiceImpl implements FileStorageService {
                     throw new RuntimeException("发送文档失败，已达到最大重试次数", e);
                 }
                 try {
-                    Thread.sleep((long) baseDelay * (int)Math.pow(2, i));
+                    Thread.sleep((long) baseDelay * (int) Math.pow(2, i));
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("重试等待被中断", ie);
@@ -436,10 +514,11 @@ public class FileStorageServiceImpl implements FileStorageService {
     /**
      * Description:
      * 流上传
+     * 
      * @author SkyDev
      * @date 2025-08-01 17:37:53
      * @param inputStream 文件流
-     * @param filename 文件名
+     * @param filename    文件名
      * @return 上传文件的返回信息
      */
     private Message sendDocument(InputStream inputStream, String filename) {

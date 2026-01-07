@@ -1,13 +1,7 @@
 <template>
   <div class="page-container">
     <div v-if="connectionLost" class="connection-alert">
-      <el-alert
-        type="error"
-        show-icon
-        :closable="false"
-        title="实时进度连接已断开"
-        description="请检查网络状态，然后点击“重新连接”恢复实时进度。"
-      />
+      <el-alert type="error" show-icon :closable="false" title="实时进度连接已断开" description="请检查网络状态，然后点击“重新连接”恢复实时进度。" />
       <div class="connection-alert-actions">
         <el-button type="primary" size="small" @click="retryWebSocket">重新连接</el-button>
       </div>
@@ -18,31 +12,20 @@
         <el-card class="content-card">
           <template #header>
             <div class="card-header">
-              <el-icon><UploadFilled /></el-icon>
+              <el-icon>
+                <UploadFilled />
+              </el-icon>
               <span>文件上传</span>
-              <el-switch
-                v-model="enableResumable"
-                active-text="断点续传"
-                inactive-text="普通上传"
-                style="margin-left: auto"
-              />
+              <el-switch v-model="enableResumable" active-text="断点续传" inactive-text="普通上传" style="margin-left: auto" />
             </div>
           </template>
 
           <!-- Upload Zone -->
-          <el-upload
-            ref="uploadRef"
-            drag
-            multiple
-            action="#"
-            :auto-upload="false"
-            :on-change="handleFileChange"
-            :on-remove="handleFileRemove"
-            :file-list="selectedFiles"
-            :disabled="isUploading"
-            class="upload-dragger"
-          >
-            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+          <el-upload ref="uploadRef" drag multiple action="#" :auto-upload="false" :on-change="handleFileChange"
+            :on-remove="handleFileRemove" :file-list="selectedFiles" :disabled="isUploading" class="upload-dragger">
+            <el-icon class="el-icon--upload">
+              <UploadFilled />
+            </el-icon>
             <div class="el-upload__text">
               将文件拖到此处, 或 <em>点击选择</em>
             </div>
@@ -50,40 +33,31 @@
               <div class="el-upload__tip">
                 支持多文件上传，支持 Ctrl+V 粘贴文件。
                 <span v-if="enableResumable" class="resumable-tip">
-                  <el-icon><InfoFilled /></el-icon>
+                  <el-icon>
+                    <InfoFilled />
+                  </el-icon>
                   断点续传模式：支持大文件上传、断网恢复、秒传
                 </span>
               </div>
             </template>
           </el-upload>
 
+          <!-- 上传路径设置 -->
+          <div class="upload-path-section">
+            <FolderSelector v-model="customUploadPath" placeholder="留空使用默认路径" :disabled="isUploading" />
+          </div>
+
           <!-- Upload Button -->
           <div class="upload-actions">
-            <el-button
-              type="primary"
-              @click="handleUpload"
-              :disabled="isUploading || selectedFiles.length === 0"
-              :loading="isUploading"
-              size="large"
-              :icon="Upload"
-            >
+            <el-button type="primary" @click="handleUpload" :disabled="isUploading || selectedFiles.length === 0"
+              :loading="isUploading" size="large" :icon="Upload">
               {{ uploadButtonText }}
             </el-button>
-            <el-button
-              v-if="isUploading && enableResumable"
-              @click="togglePause"
-              size="large"
-              :icon="isPaused ? VideoPlay : VideoPause"
-            >
+            <el-button v-if="isUploading && enableResumable" @click="togglePause" size="large"
+              :icon="isPaused ? VideoPlay : VideoPause">
               {{ isPaused ? '继续' : '暂停' }}
             </el-button>
-            <el-button
-              v-if="isUploading"
-              @click="cancelUpload"
-              size="large"
-              type="danger"
-              :icon="CircleClose"
-            >
+            <el-button v-if="isUploading" @click="cancelUpload" size="large" type="danger" :icon="CircleClose">
               取消
             </el-button>
           </div>
@@ -91,11 +65,7 @@
           <!-- Progress Section -->
           <el-collapse-transition>
             <div v-if="uploadProgress.length > 0" class="progress-section">
-              <UploadProgressItem
-                v-for="item in uploadProgress"
-                :key="item.uid"
-                :item="item"
-              />
+              <UploadProgressItem v-for="item in uploadProgress" :key="item.uid" :item="item" />
 
               <!-- 断点续传额外信息 -->
               <div v-if="enableResumable && resumableInfo" class="resumable-info">
@@ -124,7 +94,9 @@
         <el-card class="content-card">
           <template #header>
             <div class="card-header">
-              <el-icon><Tickets /></el-icon>
+              <el-icon>
+                <Tickets />
+              </el-icon>
               <span>本次上传结果</span>
               <el-button text type="primary" @click="goToFileList">查看全部</el-button>
             </div>
@@ -137,7 +109,9 @@
           <div v-else class="uploaded-files-list">
             <div v-for="file in uploadedFiles" :key="file.fileId" class="uploaded-file-item">
               <div class="file-details">
-                <el-icon><Document /></el-icon>
+                <el-icon>
+                  <Document />
+                </el-icon>
                 <span class="uploaded-file-name">{{ file.fileName }}</span>
                 <el-tag v-if="file.isInstant" type="success" size="small" style="margin-left: 8px">秒传</el-tag>
               </div>
@@ -157,8 +131,10 @@
 
           <div v-if="uploadedFiles.length > 0" class="batch-actions">
             <div class="batch-button-group">
-              <el-button @click="batchCopyMarkdown" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (MD)</el-button>
-              <el-button @click="batchCopyLinks" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制 (链接)</el-button>
+              <el-button @click="batchCopyMarkdown" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制
+                (MD)</el-button>
+              <el-button @click="batchCopyLinks" :disabled="uploadedFiles.length === 0" size="small" plain>批量复制
+                (链接)</el-button>
             </div>
           </div>
         </el-card>
@@ -176,6 +152,7 @@ import {
   InfoFilled, VideoPlay, VideoPause, CircleClose
 } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
+import FolderSelector from '@/components/FolderSelector.vue';
 import request from '@/utils/request';
 import { UploadQueueManager } from '@/utils/uploadQueueManager';
 import type { UploadOptions } from '@/utils/resumableUploader';
@@ -239,6 +216,7 @@ const RESUMABLE_MIN_SIZE = 10 * 1024 * 1024; // 10MB
 const enableResumable = ref(true); // 是否启用断点续传
 const isPaused = ref(false);
 const resumableInfo = ref<ResumableInfo | null>(null);
+const customUploadPath = ref(''); // 自定义上传路径
 
 const queueManager = new UploadQueueManager({
   maxConcurrent: CONCURRENCY_LIMIT,
@@ -505,6 +483,9 @@ const handleNormalUpload = async () => {
     try {
       const formData = new FormData();
       formData.append('file', nextFile.raw as File);
+      if (customUploadPath.value && customUploadPath.value.trim()) {
+        formData.append('uploadPath', customUploadPath.value.trim());
+      }
 
       const response = await request.post('/upload', formData, {
         timeout: 21600000,
@@ -943,6 +924,10 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   gap: 10px;
+}
+
+.upload-path-section {
+  margin-bottom: 16px;
 }
 
 .resumable-tip {

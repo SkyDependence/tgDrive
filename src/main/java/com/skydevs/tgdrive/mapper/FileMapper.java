@@ -11,6 +11,7 @@ public interface FileMapper {
 
     /**
      * 插入已上传文件
+     * 
      * @param fileInfo
      */
     @Insert("INSERT INTO files (file_name, download_url, upload_time, file_id, size, full_size, webdav_path, dir, user_id, is_public) VALUES (#{fileName}, #{downloadUrl}, #{uploadTime}, #{fileId}, #{size}, #{fullSize}, #{webdavPath}, #{dir}, #{userId}, #{isPublic})")
@@ -18,23 +19,26 @@ public interface FileMapper {
 
     /**
      * 获取全部文件
+     * 
      * @return
      */
     @Select("SELECT * FROM files order by upload_time desc ")
     Page<FileInfo> getAllFiles();
 
     @SelectProvider(type = FileSqlProvider.class, method = "getFilteredFilesQuery")
-    Page<FileInfo> getFilteredFiles(@Param("keyword") String keyword, @Param("userId") Long userId, @Param("role") String role);
+    Page<FileInfo> getFilteredFiles(@Param("keyword") String keyword, @Param("userId") Long userId,
+            @Param("role") String role);
 
     class FileSqlProvider {
         public String getFilteredFilesQuery(String keyword, Long userId, String role) {
-            StringBuilder sql = new StringBuilder("SELECT f.*, u.username as uploader FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE 1=1");
-            
+            StringBuilder sql = new StringBuilder(
+                    "SELECT f.*, u.username as uploader FROM files f LEFT JOIN users u ON f.user_id = u.id WHERE 1=1");
+
             // 关键词过滤
             if (keyword != null && !keyword.isEmpty()) {
                 sql.append(" AND f.file_name LIKE '%").append(keyword).append("%'");
             }
-            
+
             // 权限过滤
             if ("admin".equals(role)) {
                 // admin可以查看所有文件，不添加额外条件
@@ -48,7 +52,7 @@ public interface FileMapper {
                 // visitor或未登录用户只能查看公开文件
                 sql.append(" AND f.is_public = 1");
             }
-            
+
             sql.append(" ORDER BY f.upload_time DESC");
             return sql.toString();
         }
@@ -85,4 +89,16 @@ public interface FileMapper {
 
     @Update("UPDATE files SET is_public = #{isPublic} WHERE file_id = #{fileId}")
     void updateIsPublic(@Param("fileId") String fileId, @Param("isPublic") boolean isPublic);
+
+    /**
+     * 获取指定路径下的直接子目录
+     */
+    @Select("SELECT * FROM files WHERE dir = 1 AND webdav_path LIKE #{path} || '%' ORDER BY webdav_path")
+    List<FileInfo> getDirectoriesByPathPrefix(@Param("path") String path);
+
+    /**
+     * 模糊搜索目录
+     */
+    @Select("SELECT * FROM files WHERE dir = 1 AND webdav_path LIKE '%' || #{keyword} || '%' ORDER BY webdav_path LIMIT 20")
+    List<FileInfo> searchDirectories(@Param("keyword") String keyword);
 }

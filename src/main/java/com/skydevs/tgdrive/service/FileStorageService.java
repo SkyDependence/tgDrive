@@ -16,22 +16,36 @@ public interface FileStorageService {
     /**
      * Description:
      * 获取上传文件（文件名，上传链接）
+     * 
      * @author SkyDev
      * @date 2025-07-30 15:08:45
      */
     UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId);
 
     /**
+     * Description:
+     * 获取上传文件（文件名，上传链接），支持自定义上传路径
+     * 
+     * @param multipartFile 上传文件
+     * @param request       HTTP请求
+     * @param userId        用户ID
+     * @param uploadPath    自定义上传路径，为空则使用默认路径
+     */
+    UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId, String uploadPath);
+
+    /**
      * 上传文件
+     * 
      * @param inputStream 文件输入流
-     * @param filename 文件名
-     * @param size 文件大小
+     * @param filename    文件名
+     * @param size        文件大小
      * @return 文件存储ID
      */
     String uploadFile(InputStream inputStream, String filename, long size);
 
     /**
      * 分页查询文件列表
+     * 
      * @param page 页码
      * @param size 每页数量
      * @return 分页结果
@@ -45,6 +59,7 @@ public interface FileStorageService {
 
     /**
      * 根据文件ID删除文件
+     * 
      * @param fileId 文件ID
      */
     void deleteFile(String fileId, Long userId, String role);
@@ -52,12 +67,13 @@ public interface FileStorageService {
     /**
      * Description:
      * 文件假删除
+     * 
      * @author SkyDev
      * @date 2025-07-30 16:29:07
-     * @param fileId 文件id
+     * @param fileId   文件id
      * @param isPublic 是否公开
-     * @param userId 用户id
-     * @param role 权限
+     * @param userId   用户id
+     * @param role     权限
      */
     void updateIsPublic(String fileId, boolean isPublic, Long userId, String role);
 }
