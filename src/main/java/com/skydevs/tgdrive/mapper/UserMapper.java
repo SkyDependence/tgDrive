@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import java.util.List;
@@ -12,9 +13,9 @@ import java.util.List;
 @Mapper
 public interface UserMapper {
 
-
     /**
      * 根据用户名查找用户
+     * 
      * @param username 用户名
      * @return
      */
@@ -23,6 +24,7 @@ public interface UserMapper {
 
     /**
      * 根据邮箱查找用户
+     * 
      * @param email 邮箱
      * @return
      */
@@ -31,6 +33,7 @@ public interface UserMapper {
 
     /**
      * 根据用户名或邮箱查找用户
+     * 
      * @param usernameOrEmail 用户名或邮箱
      * @return
      */
@@ -39,6 +42,7 @@ public interface UserMapper {
 
     /**
      * 根据id查找用户
+     * 
      * @param id 用户id
      * @return User
      */
@@ -47,14 +51,16 @@ public interface UserMapper {
 
     /**
      * 根据id更新密码
-     * @param id 用户id
+     * 
+     * @param id          用户id
      * @param newPassword 新密码
      */
     @Update("UPDATE users SET password = #{newPassword} where id = #{id}")
-    void updatePassword(long id, String newPassword);
+    void updatePassword(@Param("id") long id, @Param("newPassword") String newPassword);
 
     /**
      * 插入新用户
+     * 
      * @param user 用户信息
      */
     @Insert("INSERT INTO users (username, password, role, email, last_login_time) VALUES (#{username}, #{password}, #{role}, #{email}, #{lastLoginTime})")
@@ -63,6 +69,7 @@ public interface UserMapper {
 
     /**
      * 获取所有用户列表
+     * 
      * @return 用户列表
      */
     @Select("SELECT * FROM users ORDER BY id DESC")
@@ -70,6 +77,7 @@ public interface UserMapper {
 
     /**
      * 根据用户ID删除用户
+     * 
      * @param userId 用户ID
      */
     @Delete("DELETE FROM users WHERE id = #{userId}")
@@ -77,9 +85,10 @@ public interface UserMapper {
 
     /**
      * 更新用户最后登录时间
-     * @param userId 用户ID
+     * 
+     * @param userId        用户ID
      * @param lastLoginTime 最后登录时间
      */
     @Update("UPDATE users SET last_login_time = #{lastLoginTime} WHERE id = #{userId}")
-    void updateLastLoginTime(Long userId, String lastLoginTime);
+    void updateLastLoginTime(@Param("userId") Long userId, @Param("lastLoginTime") String lastLoginTime);
 }
