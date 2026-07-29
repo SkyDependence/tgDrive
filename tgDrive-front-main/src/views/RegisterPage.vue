@@ -4,7 +4,7 @@
       <div class="register-header">
         <el-icon :size="28" color="var(--el-color-primary)"><Cloudy /></el-icon>
         <h2 class="register-title">创建账户</h2>
-        <p class="register-subtitle">注册以开始使用 ST-TG网盘</p>
+        <p class="register-subtitle">注册以开始使用 TG Drive</p>
       </div>
 
       <el-form 

@@ -65,7 +65,7 @@ const uploadRef = ref<UploadInstance>()
 const handleFileSelect = (file: UploadFile) => {
   const isDB = file.raw?.type === 'application/octet-stream' || file.name.endsWith('.db');
   if (!isDB) {
-    ElMessage.error('只能上传 .db 格式的数据库文件!');
+    ElMessage.error('只能上传 .db 格式的数据库文件！');
     return;
   }
 

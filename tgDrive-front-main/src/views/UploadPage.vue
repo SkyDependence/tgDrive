@@ -38,7 +38,7 @@
           >
             <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
             <div class="el-upload__text">
-              将文件拖到此处, 或 <em>点击选择</em>
+              将文件拖到此处，或 <em>点击选择</em>
             </div>
             <template #tip>
               <div class="el-upload__tip">
@@ -92,7 +92,22 @@
           <div v-else class="uploaded-files-list">
             <div v-for="file in uploadedFiles" :key="file.fileId" class="uploaded-file-item">
               <div class="file-details">
-                <el-icon><Document /></el-icon>
+                <span class="uploaded-file-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <defs>
+                      <linearGradient id="uploadedFileGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#60a5fa" />
+                        <stop offset="100%" stop-color="#2563eb" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M6 2.5h8L19 7v13.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z"
+                          fill="url(#uploadedFileGrad)" />
+                    <path d="M14 2.5V7h5" fill="none" stroke="#fff" stroke-width="1.4"
+                          stroke-linejoin="round" opacity="0.85" />
+                    <path d="M8.5 12.5l2 2 4-4.2" fill="none" stroke="#fff" stroke-width="1.7"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
                 <span class="uploaded-file-name">{{ file.fileName }}</span>
               </div>
               <div class="file-actions">
@@ -128,7 +143,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, UploadFile, UploadFiles, UploadInstance } from 'element-plus';
-import { UploadFilled, Upload, Document, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
+import { UploadFilled, Upload, Link, Tickets, Paperclip, View } from '@element-plus/icons-vue';
 import UploadProgressItem from '@/components/UploadProgressItem.vue';
 import request from '@/utils/request';
 
@@ -181,6 +196,37 @@ const reconnectFailureNotified = ref(false);
 const uploadCompletedCount = computed(() =>
   uploadProgress.value.filter(p => p.server.status === 'success').length
 );
+
+// 上传完成信号：以文件名为 key，保存 WebSocket 侧的完成/失败回调。
+// 当后端通过 WS 推送 upload_complete / upload_error 时触发，
+// 使前端不必死等 HTTP 响应——移动端连接中断导致响应丢失时，
+// 仍能凭 WS 信号结束该文件的上传（修复“进度已完成但按钮卡在正在上传”）。
+type CompletionSignal = { resolve: () => void; reject: (e: Error) => void; promise: Promise<void> };
+const completionSignals = new Map<string, CompletionSignal>();
+
+const createCompletionSignal = (fileName: string): CompletionSignal => {
+  let resolve!: () => void;
+  let reject!: (e: Error) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  // 避免未被 await 时抛未捕获异常
+  promise.catch(() => {});
+  const signal = { resolve, reject, promise };
+  completionSignals.set(fileName, signal);
+  return signal;
+};
+
+const resolveCompletionSignal = (fileName: string) => {
+  const s = completionSignals.get(fileName);
+  if (s) s.resolve();
+};
+
+const rejectCompletionSignal = (fileName: string, message: string) => {
+  const s = completionSignals.get(fileName);
+  if (s) s.reject(new Error(message));
+};
 
 // --- Methods ---
 const handleFileChange = (_file: UploadFile, fileList: UploadFiles) => {
@@ -239,11 +285,13 @@ const handleUpload = async () => {
       return;
     }
 
+    // 为该文件建立 WebSocket 完成信号，作为 HTTP 响应丢失时的兜底结束信号
+    const signal = createCompletionSignal(nextFile.name);
     try {
       const formData = new FormData();
       formData.append('file', nextFile.raw as File);
 
-      const response = await request.post('/upload', formData, {
+      const httpPromise = request.post('/upload', formData, {
         timeout: 21600000,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -251,14 +299,32 @@ const handleUpload = async () => {
             progressItem.client.percentage = (progressEvent.loaded / progressEvent.total) * 100;
           }
         }
+      }).then((response) => {
+        const { code, msg, data } = response.data;
+        if (code === 1) {
+          return data;
+        }
+        throw new Error(msg || '上传响应错误');
       });
 
-      const { code, msg, data } = response.data;
-      if (code === 1) {
-        progressItem.client.status = 'success';
-        uploadedFiles.value.push(data);
+      // HTTP 响应与 WS 完成信号竞速：
+      // - 正常情况 HTTP 先返回，带回 downloadLink，走完整结果展示
+      // - 移动端连接中断导致 HTTP 响应丢失时，WS 的 upload_complete 先到，
+      //   凭此结束等待（文件此时已成功入库），避免前端永久卡在“正在上传”
+      const httpResult = await Promise.race([
+        httpPromise.then((data) => ({ from: 'http' as const, data })),
+        signal.promise.then(() => ({ from: 'ws' as const, data: null })),
+      ]);
+
+      progressItem.client.status = 'success';
+      if (httpResult.from === 'http' && httpResult.data) {
+        uploadedFiles.value.push(httpResult.data);
       } else {
-        throw new Error(msg || '上传响应错误');
+        // WS 兜底路径：文件已上传成功但未拿到 HTTP 返回的链接，
+        // 标记服务器阶段成功并提示用户到文件列表查看
+        progressItem.server.status = 'success';
+        progressItem.server.percentage = 100;
+        ElMessage.success(`${nextFile.name} 上传成功，可在“查看全部”中获取链接`);
       }
     } catch (error: any) {
       if (error?.message === '登录状态已过期，请重新登录') {
@@ -268,6 +334,7 @@ const handleUpload = async () => {
       progressItem.client.status = 'exception';
       ElMessage.error(`${nextFile.name} 上传失败: ${error.message}`);
     } finally {
+      completionSignals.delete(nextFile.name);
       if (queue.length > 0) {
         await runNext();
       }
@@ -313,7 +380,6 @@ const connectWebSocket = () => {
     websocket.value = new WebSocket(wsUrl);
 
     websocket.value.onopen = () => {
-      console.log('WebSocket 连接已建立');
       reconnectAttempts.value = 0;
       reconnectDelay.value = 1000; // 重置重连延迟
       reconnectFailureNotified.value = false;
@@ -333,19 +399,36 @@ const connectWebSocket = () => {
         const progressItem = uploadProgress.value.find(p => p.name === data.fileName);
         if (!progressItem) return;
 
+        // 幂等保护：已完成的文件不再被后续消息回退。
+        // WebSocket 断线重连后服务器可能重发早前的 upload_progress，
+        // 若不拦截会把已 success 的文件打回 uploading（表现为“上传成功又跳回上传到 Telegram”）。
+        if (progressItem.server.status === 'success') {
+          return;
+        }
+
         if (data.type === 'upload_progress') {
           progressItem.server.status = 'uploading';
           const totalChunks = data.total_chunks || data.totalChunks;
           const currentChunk = data.current_chunk || data.currentChunk;
-          if (totalChunks !== undefined) progressItem.server.totalChunks = totalChunks;
-          if (currentChunk !== undefined) progressItem.server.currentChunk = currentChunk;
-          if (data.percentage !== undefined) progressItem.server.percentage = data.percentage;
+          // 分块进度只允许单调递增，防止乱序/重发消息导致进度回退
+          if (totalChunks !== undefined && totalChunks >= progressItem.server.totalChunks) {
+            progressItem.server.totalChunks = totalChunks;
+          }
+          if (currentChunk !== undefined && currentChunk >= progressItem.server.currentChunk) {
+            progressItem.server.currentChunk = currentChunk;
+          }
+          if (data.percentage !== undefined && data.percentage >= progressItem.server.percentage) {
+            progressItem.server.percentage = data.percentage;
+          }
         } else if (data.type === 'upload_complete') {
           progressItem.server.status = 'success';
           progressItem.server.percentage = 100;
+          // 触发完成信号，解除对 HTTP 响应的依赖
+          resolveCompletionSignal(data.fileName);
         } else if (data.type === 'upload_error') {
           progressItem.server.status = 'exception';
           ElMessage.error(`${data.fileName} 传输到Telegram失败: ${data.error}`);
+          rejectCompletionSignal(data.fileName, data.error || '传输到Telegram失败');
         }
       } catch (error) {
         console.error('WebSocket message parse error:', error);
@@ -357,7 +440,6 @@ const connectWebSocket = () => {
     };
 
     websocket.value.onclose = (event) => {
-      console.log('WebSocket 连接已关闭', event);
       stopHeartbeat();
 
       const closedSocket = (event?.target || null) as WebSocket | null;
@@ -369,7 +451,6 @@ const connectWebSocket = () => {
       // 只在页面可见且未达到最大重连次数时进行重连
       if (isPageVisible.value && reconnectAttempts.value < maxReconnectAttempts) {
         reconnectAttempts.value++;
-        console.log(`尝试重连 (${reconnectAttempts.value}/${maxReconnectAttempts})...`);
 
         reconnectTimer.value = window.setTimeout(() => {
           connectWebSocket();
@@ -456,9 +537,48 @@ const stopHeartbeat = () => {
 };
 
 // --- Utility and Lifecycle ---
-const goToFileList = () => router.push('/fileList');
+const goToFileList = () => {
+  // 根据用户角色跳转到对应的文件列表页
+  const role = localStorage.getItem('role') || '';
+  if (role === 'admin') {
+    router.push('/fileList');
+  } else {
+    router.push('/user/home');
+  }
+};
 const copyToClipboard = (text: string, message: string) => {
-  navigator.clipboard.writeText(text).then(() => ElMessage.success(message));
+  // 优先使用现代 Clipboard API（仅安全上下文可用），失败时降级到 execCommand
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+      .then(() => ElMessage.success(message))
+      .catch(() => fallbackCopyText(text, message));
+  } else {
+    fallbackCopyText(text, message);
+  }
+};
+
+const fallbackCopyText = (text: string, message: string) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.opacity = '0';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      ElMessage.success(message);
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  } catch {
+    ElMessage.error('复制失败，请手动复制');
+  } finally {
+    document.body.removeChild(textArea);
+  }
 };
 const copyMarkdown = (file: UploadedFile) => copyToClipboard(`![${file.fileName}](${file.downloadLink})`, 'Markdown 格式已复制');
 const copyLink = (file: UploadedFile) => copyToClipboard(file.downloadLink, '下载链接已复制');
@@ -508,15 +628,12 @@ onMounted(() => {
   const handleVisibilityChange = () => {
     isPageVisible.value = !document.hidden;
     if (!document.hidden) {
-      console.log('页面显示，检查 WebSocket 连接状态');
       if (connectionLost.value) {
         return;
       }
       if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
         connectWebSocket();
       }
-    } else {
-      console.log('页面隐藏，保持 WebSocket 连接');
     }
   };
 
@@ -525,16 +642,13 @@ onMounted(() => {
   // 添加窗口焦点事件监听
   const handleFocus = () => {
     if (connectionLost.value) {
-      console.log('窗口获得焦点，但连接已标记为失败，等待用户手动重连');
       return;
     }
     const autoReconnecting = reconnectTimer.value !== null || reconnectAttempts.value > 0;
     if (autoReconnecting) {
-      console.log('窗口获得焦点，自动重连进行中，跳过额外检查');
       return;
     }
     if (!websocket.value || websocket.value.readyState !== WebSocket.OPEN) {
-      console.log('窗口获得焦点，尝试恢复 WebSocket 连接');
       connectWebSocket();
     }
   };
@@ -732,6 +846,18 @@ html.dark .uploaded-file-item {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-color: #7dd3fc;
+}
+
+.uploaded-file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(37, 99, 235, 0.25));
+}
+
+.uploaded-file-icon svg {
+  display: block;
 }
 
 .file-details {

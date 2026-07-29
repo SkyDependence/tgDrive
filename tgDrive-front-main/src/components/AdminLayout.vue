@@ -9,7 +9,7 @@
             <Fold v-else />
           </el-icon>
           <el-icon class="logo-icon"><Monitor /></el-icon>
-          <span class="logo-text hidden-xs-only" v-show="!isCollapsed">ST-TG网盘管理</span>
+          <span class="logo-text hidden-xs-only" v-show="!isCollapsed">TG Drive 管理</span>
         </div>
       </div>
       <div class="header-actions">
@@ -33,7 +33,7 @@
           <el-avatar
               class="user-avatar"
               :size="32"
-              src="/public/favicon.ico"
+              src="/favicon.ico"
           />
           <template #dropdown>
             <el-dropdown-menu>
@@ -168,17 +168,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, shallowRef } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   HomeFilled, Folder, Top, EditPen, Sunny, Moon, Expand, Fold, Download, Monitor, SwitchButton, Service, Connection, Setting, User
 } from '@element-plus/icons-vue'
-import request from '@/utils/request'
+import { useUserStore } from '@/store/user'
 
 type Theme = 'light' | 'dark' | 'auto'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const activeMenu = computed(() => route.path)
 const isCollapsed = ref(false)
@@ -254,6 +255,9 @@ const checkMobile = () => {
 
 // --- Component Lifecycle ---
 onMounted(() => {
+  // 初始化用户信息（从 localStorage 同步到 Pinia store）
+  userStore.initUserInfo()
+
   // Initial check for mobile
   checkMobile()
   window.addEventListener('resize', checkMobile)
@@ -288,8 +292,8 @@ const toggleSidebar = () => {
 
 const handleUserCommand = (command: string) => {
   if (command === 'logout') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('tokenExpireAt');
+    // 完整清除用户信息（localStorage + Pinia store）
+    userStore.clearUserInfo();
     router.push('/login');
   }
 }
@@ -329,20 +333,32 @@ const handleSelectAndCloseDrawer = (index: string) => {
   gap: 15px;
 }
 
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1;
+}
+
 .logo-icon {
   font-size: 24px;
   color: var(--el-color-primary);
+  display: flex;
+  align-items: center;
 }
 
 .logo-text {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-color);
+  white-space: nowrap;
 }
 
 .toggle-sidebar {
   cursor: pointer;
   font-size: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .user-avatar {

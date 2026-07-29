@@ -67,11 +67,9 @@ const redirectToLogin = () => {
       redirect: target
     }
   }).catch(() => {
-    // ignore redundant navigation warnings
+    // 如果路由跳转失败（例如重复导航），降级为整页跳转以确保用户到达登录页
+    window.location.replace(loginLocation);
   });
-
-  // 确保页面实际跳转，避免出现地址栏变化但视图未刷新的情况
-  window.location.replace(loginLocation);
 };
 
 // 请求拦截器
@@ -89,7 +87,8 @@ service.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       return Promise.reject(new Error('登录状态已过期，请重新登录'));
     }
 
-    config.headers['Authorization'] = `Bearer ${token}`;
+    // Sa-Token 配置 token-name 为 tgdrive，必须使用该 header 名称传递 token
+    config.headers['tgdrive'] = token;
   }
   
   if (!isFormData) {
@@ -130,10 +129,17 @@ service.interceptors.response.use(
       delete config.__requestKey;
     }
     
-    if (error.response && error.response.status === 401) {
-      callGlobalClearUserInfo();
-      // 使用 router 进行跳转，并携带 redirect 参数
-      redirectToLogin();
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401) {
+        callGlobalClearUserInfo();
+        // 未登录或登录已过期，跳转登录页并携带 redirect 参数
+        redirectToLogin();
+      } else if (status === 403) {
+        // 已登录但权限不足，仅提示，不跳转登录页
+        const msg = error.response.data?.msg || '无权限执行此操作';
+        ElMessage.error(msg);
+      }
     }
     return Promise.reject(error);
   }

@@ -6,7 +6,7 @@
         <div class="logo">
           <el-icon class="logo-icon"><Cloudy /></el-icon>
           <div class="logo-text">
-            <span class="main-title">TG-Drive</span>
+            <span class="main-title">TG Drive</span>
           </div>
         </div>
         <div class="actions">
@@ -24,9 +24,9 @@
           </el-dropdown>
           <!-- 普通用户导航 - 大屏幕显示按钮 -->
           <div v-if="isLoggedIn && userRole === 'user'" class="user-nav-desktop">
-            <el-button type="text" @click="goToUserHome">我的文件</el-button>
-            <el-button type="text" @click="goToUpload">上传文件</el-button>
-            <el-button type="text" @click="goToChangePassword">修改密码</el-button>
+            <el-button type="primary" plain :icon="Folder" @click="goToUserHome">我的文件</el-button>
+            <el-button type="primary" plain :icon="Upload" @click="goToUpload">上传文件</el-button>
+            <el-button type="primary" plain :icon="Lock" @click="goToChangePassword">修改密码</el-button>
           </div>
           
           <!-- 普通用户导航 - 小屏幕显示下拉菜单 -->
@@ -52,7 +52,7 @@
             <div class="user-info">
               <el-avatar
                 :size="32"
-                src="/public/favicon.ico"
+                src="/favicon.ico"
                 style="cursor: pointer;"
               />
               <div class="user-details">
@@ -103,7 +103,7 @@
           </el-button>
         </div>
         <div class="footer-copyright">
-          <span>© 2025 TG-Drive. All rights reserved.</span>
+          <span>© {{ currentYear }} TG Drive 保留所有权利</span>
         </div>
       </div>
     </el-footer>
@@ -121,6 +121,9 @@ import { useUserStore } from '@/store/user'
 type Theme = 'light' | 'dark' | 'auto'
 
 const router = useRouter()
+
+// 页脚版权年份自动取当前年份
+const currentYear = new Date().getFullYear()
 const theme = ref<Theme>('auto')
 const userStore = useUserStore()
 
@@ -276,7 +279,7 @@ const goToAgreement = () => {
   router.push('/agreement')
 }
 
-// 导航到隐私政策页面（暂时跳转到关于页面）
+// 导航到隐私政策页面
 const goToPrivacy = () => {
   router.push('/privacy')
 }
