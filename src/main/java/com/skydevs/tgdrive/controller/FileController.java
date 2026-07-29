@@ -52,13 +52,14 @@ public class FileController {
      * @param size 每页数量
      * @return 分页结果
      */
+    @SaCheckLogin
     @GetMapping("/file-list")
     public Result<PageResult> getFileList(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String keyword, @RequestParam(required = false) Long userId) {
-        Long currentUserId = null;
-        String role = "visitor";
-        if (StpUtil.isLogin()) {
-            currentUserId = StpUtil.getLoginIdAsLong();
-            role = StpUtil.getSession().getString("role");
+        // 全局拦截器 + @SaCheckLogin 已保证登录，直接取当前用户与角色，未登录无法枚举文件列表
+        Long currentUserId = StpUtil.getLoginIdAsLong();
+        String role = StpUtil.getSession().getString("role");
+        if (role == null || role.isEmpty()) {
+            role = "user";
         }
         
         // 如果是管理员且指定了userId参数，则按指定用户筛选
@@ -102,14 +103,9 @@ public class FileController {
     @DeleteMapping("/file/{fileId}")
     public Result<String> deleteFile(@NotBlank(message = "fileId不能为空") @PathVariable String fileId) {
         log.info("删除文件，fileId: {}", fileId);
-        try {
-            long userId = StpUtil.getLoginIdAsLong();
-            String role = StpUtil.getSession().getString("role");
-            fileStorageService.deleteFile(fileId, userId, role);
-            return Result.success("文件删除成功");
-        } catch (Exception e) {
-            log.error("文件删除失败", e);
-            return Result.error("文件删除失败: " + e.getMessage());
-        }
+        long userId = StpUtil.getLoginIdAsLong();
+        String role = StpUtil.getSession().getString("role");
+        fileStorageService.deleteFile(fileId, userId, role);
+        return Result.success("文件删除成功");
     }
 }

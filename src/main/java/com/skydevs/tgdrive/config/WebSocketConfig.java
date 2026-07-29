@@ -1,13 +1,20 @@
 package com.skydevs.tgdrive.config;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.websocket.UploadProgressWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
+
+import java.util.Map;
 
 @Configuration
 @EnableWebSocket
@@ -19,7 +26,32 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(uploadProgressWebSocketHandler, "/ws/upload-progress")
-                .setAllowedOrigins("*"); // 在生产环境中应该限制具体的域名
+                // 握手前校验 Sa-Token 登录态，拒绝未登录连接，防止匿名窃听上传进度
+                .addInterceptors(new SaTokenHandshakeInterceptor())
+                .setAllowedOrigins("*");
+    }
+
+    /**
+     * WebSocket 握手拦截器：校验登录态并将 userId 透传到会话 attributes
+     */
+    static class SaTokenHandshakeInterceptor implements HandshakeInterceptor {
+        @Override
+        public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                                       WebSocketHandler wsHandler, Map<String, Object> attributes) {
+            // 未登录直接拒绝握手
+            if (!StpUtil.isLogin()) {
+                return false;
+            }
+            // 将 userId 存入会话属性，供后续按用户隔离广播
+            attributes.put("userId", StpUtil.getLoginIdAsLong());
+            return true;
+        }
+
+        @Override
+        public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                                   WebSocketHandler wsHandler, Exception exception) {
+            // 无需后置处理
+        }
     }
 
     @Bean

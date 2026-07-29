@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import jakarta.annotation.PreDestroy;
 
 
 @Slf4j
@@ -24,12 +27,26 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ExecutorService broadcastExecutor = Executors.newFixedThreadPool(4);
 
+    @PreDestroy
+    public void destroy() {
+        broadcastExecutor.shutdown();
+        try {
+            if (!broadcastExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                broadcastExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            broadcastExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String sessionId = session.getId();
         sessions.put(sessionId, session);
         sessionLocks.put(sessionId, new Object());
-        log.info("WebSocket连接建立: {}", sessionId);
+        Object userId = session.getAttributes().get("userId");
+        log.info("WebSocket连接建立: {}, userId: {}", sessionId, userId);
     }
 
     @Override
@@ -81,18 +98,18 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
 
 
     /**
-     * 发送上传进度
+     * 发送上传进度（仅推送给指定用户的会话，避免跨用户信息泄露）
      */
-    public void sendUploadProgress(String fileName, double percentage) {
+    public void sendUploadProgress(Long userId, String fileName, double percentage) {
         UploadProgressMessage message = new UploadProgressMessage();
         message.setFileName(fileName);
         message.setPercentage(percentage);
         message.setType("upload_progress");
 
-        broadcastMessage(message);
+        broadcastMessage(userId, message);
     }
 
-    public void sendUploadProgress(String fileName, double percentage, int currentChunk, int totalChunks) {
+    public void sendUploadProgress(Long userId, String fileName, double percentage, int currentChunk, int totalChunks) {
         UploadProgressMessage message = new UploadProgressMessage();
         message.setFileName(fileName);
         message.setPercentage(percentage);
@@ -100,36 +117,45 @@ public class UploadProgressWebSocketHandler implements WebSocketHandler {
         message.setTotalChunks(totalChunks);
         message.setType("upload_progress");
 
-        broadcastMessage(message);
+        broadcastMessage(userId, message);
     }
 
     /**
      * 发送上传完成消息
      */
-    public void sendUploadComplete(String fileName) {
+    public void sendUploadComplete(Long userId, String fileName) {
         UploadCompleteMessage message = new UploadCompleteMessage();
         message.setFileName(fileName);
         message.setType("upload_complete");
 
-        broadcastMessage(message);
+        broadcastMessage(userId, message);
     }
 
     /**
      * 发送上传失败消息
      */
-    public void sendUploadError(String fileName, String error) {
+    public void sendUploadError(Long userId, String fileName, String error) {
         UploadErrorMessage message = new UploadErrorMessage();
         message.setFileName(fileName);
         message.setError(error);
         message.setType("upload_error");
 
-        broadcastMessage(message);
+        broadcastMessage(userId, message);
     }
 
-    private void broadcastMessage(Object message) {
+    /**
+     * 仅向指定用户的会话广播消息，防止跨用户泄露文件名等敏感信息
+     */
+    private void broadcastMessage(Long userId, Object message) {
         try {
             String json = objectMapper.writeValueAsString(message);
-            sessions.values().forEach(session -> broadcastExecutor.execute(() -> sendMessageSafely(session, json)));
+            sessions.values().forEach(session -> {
+                // 仅向归属该用户的会话推送
+                Object sessionUserId = session.getAttributes().get("userId");
+                if (userId != null && userId.equals(sessionUserId)) {
+                    broadcastExecutor.execute(() -> sendMessageSafely(session, json));
+                }
+            });
         } catch (Exception e) {
             log.error("广播WebSocket消息失败", e);
         }

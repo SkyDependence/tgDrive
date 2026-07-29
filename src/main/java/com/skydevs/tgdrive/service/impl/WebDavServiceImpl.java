@@ -1,7 +1,9 @@
 package com.skydevs.tgdrive.service.impl;
 
+import com.skydevs.tgdrive.dto.WebDavConfig;
 import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.mapper.FileMapper;
+import com.skydevs.tgdrive.service.WebDavConfigService;
 import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
@@ -29,13 +31,27 @@ public class WebDavServiceImpl implements WebDavService {
 
     private final WebDavFileService webDavFileService;
     private final FileMapper fileMapper;
+    private final WebDavConfigService webDavConfigService;
+
+    private static final String CONTEXT_PATH = "/webdav";
+    private static final DateTimeFormatter RFC1123_FORMATTER =
+            DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
 
     @Override
     public void switchMethod(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String realMethod = (String) request.getAttribute("X-HTTP-Method-Override");
-        log.info("进入handleWebDav方法，真实的method是{}", realMethod);
-        String realURI = request.getRequestURI().substring("/webdav/dispatch".length());
-        log.info("请求路径是{}", realURI);
+        String realURI = request.getRequestURI().substring((CONTEXT_PATH + "/dispatch").length());
+        // URL 解码：getRequestURI() 返回未解码路径，中文等特殊字符以 %xx 编码
+        try {
+            realURI = UriUtils.decode(realURI, "UTF-8");
+        } catch (Exception e) {
+            log.warn("WebDAV 路径解码失败: {}", realURI);
+        }
+        // 规范化：空路径视为根
+        if (realURI.isEmpty()) {
+            realURI = "/";
+        }
+        log.info("WebDAV {} {}", realMethod, realURI);
 
         if (realMethod == null) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing X-HTTP-Method-Override");
@@ -57,6 +73,12 @@ public class WebDavServiceImpl implements WebDavService {
             case "PROPPATCH":
                 handlePropPatch(request, response, realURI);
                 break;
+            case "LOCK":
+                handleLock(request, response, realURI);
+                break;
+            case "UNLOCK":
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204
+                break;
             default:
                 response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Unsupported WebDAV method");
                 break;
@@ -64,140 +86,170 @@ public class WebDavServiceImpl implements WebDavService {
     }
 
     /**
-     * Description:
-     * 处理PROPPATCH请求，用于修改文件属性（如修改时间）
-     * 我们的服务器实际上不支持修改，但为了兼容客户端，我们假装成功。
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request WebDAV请求
-     * @param response WebDAV响应
-     * @param realURI 请求路径
-     * @throws IOException IO异常
+     * 处理 PROPPATCH：服务器不支持修改属性，但返回成功以兼容客户端
      */
     private void handlePropPatch(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
-        // 哼喵，我们其实什么都不用做，只要礼貌地回复一个成功就行了！
-        response.setStatus(207); // 207 Multi-Status
+        response.setStatus(207);
         response.setContentType("application/xml;charset=UTF-8");
-
-        // 构建一个最简单的“成功”XML回复
         String xmlResponse = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<D:multistatus xmlns:D=\"DAV:\">" +
-                "  <D:response>" +
-                "    <D:href>" + escapeXml("/webdav" + realURI) + "</D:href>" +
-                "    <D:propstat>" +
-                "      <D:status>HTTP/1.1 200 OK</D:status>" +
-                "    </D:propstat>" +
-                "  </D:response>" +
+                "<D:response>" +
+                "<D:href>" + escapeXml(CONTEXT_PATH + realURI) + "</D:href>" +
+                "<D:propstat><D:status>HTTP/1.1 200 OK</D:status></D:propstat>" +
+                "</D:response>" +
                 "</D:multistatus>";
-
         response.getWriter().write(xmlResponse);
     }
 
     /**
-     * Description:
-     * WebDAV文件移动
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request WebDAV请求
-     * @param response WebDAV响应
-     * @param realURI 请求路径
+     * 处理 LOCK：返回一个最小化锁令牌，兼容需要锁定才能写入的客户端（如 Windows）
+     */
+    private void handleLock(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
+        String token = "opaquelocktoken:" + java.util.UUID.randomUUID();
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("application/xml;charset=UTF-8");
+        response.setHeader("Lock-Token", "<" + token + ">");
+        String xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                "<D:prop xmlns:D=\"DAV:\">" +
+                "<D:lockdiscovery><D:activelock>" +
+                "<D:locktype><D:write/></D:locktype>" +
+                "<D:lockscope><D:exclusive/></D:lockscope>" +
+                "<D:depth>infinity</D:depth>" +
+                "<D:timeout>Second-3600</D:timeout>" +
+                "<D:locktoken><D:href>" + token + "</D:href></D:locktoken>" +
+                "<D:lockroot><D:href>" + escapeXml(CONTEXT_PATH + realURI) + "</D:href></D:lockroot>" +
+                "</D:activelock></D:lockdiscovery>" +
+                "</D:prop>";
+        response.getWriter().write(xml);
+    }
+
+    /**
+     * 处理 MOVE
      */
     private void handleMove(HttpServletRequest request, HttpServletResponse response, String realURI) {
-        String target = request.getHeader("Destination");
+        if (!isOperationAllowed(c -> c.getAllowMove())) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+        FileInfo sourceFile = locate(realURI);
+        if (sourceFile == null) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String destination = request.getHeader("Destination");
+        if (destination == null) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        String srcPath = sourceFile.getWebdavPath();
+        boolean isDir = sourceFile.isDir();
+        String target = getTargetPath(request, destination, isDir);
+        if (target == null || target.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        if (target.equals(srcPath)) {
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        // RFC 4918: Overwrite 默认为 T
         String overwrite = request.getHeader("Overwrite");
-        FileInfo sourceFile = getFileByWebdavPathWithFallback(realURI);
-        if (target == null || realURI == null || sourceFile == null) {
-            response.setStatus(400);
+        if (overwrite == null || overwrite.isEmpty()) {
+            overwrite = "T";
+        }
+        FileInfo targetFile = locate(target);
+        if (targetFile != null && "F".equalsIgnoreCase(overwrite)) {
+            response.setStatus(HttpServletResponse.SC_CONFLICT); // 409
             return;
         }
-        target = getTargetPath(request, target, sourceFile.isDir());
-        // 如果移动后和移动前路径相同，直接返回
-        if (target.equals(realURI)) {
-            response.setStatus(204);
-            return;
+        // 允许覆盖且目标存在：先删除目标（含其子项）
+        if (targetFile != null) {
+            fileMapper.deleteFileByWebDav(targetFile.getWebdavPath());
         }
-        FileInfo targetFile = getFileByWebdavPathWithFallback(target);
-        List<FileInfo> subFiles = getSubFiles(realURI);
-        sourceFile.setFileName(StringUtil.getDisplayName(target, sourceFile.isDir()));
-        if (targetFile != null && overwrite.equalsIgnoreCase("F")) {
-            response.setStatus(409);
-        } else if (overwrite.equalsIgnoreCase("T") && targetFile != null) {
-            // 允许覆盖且目标路径有该文件名，删除原文件路径，更新目标文件路径的属性
-            fileMapper.deleteFileByWebDav(realURI);
-            fileMapper.updateFileAttributeByWebDav(sourceFile, target);
-            handleMoveSubFiles(subFiles, target, realURI);
-            response.setStatus(204);
-            log.info("{} 移动到 {}", realURI, target);
+        // 整体移动（保留全部属性）
+        if (isDir) {
+            fileMapper.moveWebdavByPrefix(srcPath, target);
         } else {
-            // 目标路径没有该文件名
-            fileMapper.deleteFileByWebDav(realURI);
-            fileMapper.moveFile(sourceFile, target);
-            handleMoveSubFiles(subFiles, target, realURI);
-            response.setStatus(204);
-            log.info("{} 移动到 {}", realURI, target);
+            fileMapper.moveWebdavExact(srcPath, target);
         }
+        // 同步顶层项的文件名为新路径对应的名称
+        fileMapper.updateFileNameByPath(target, displayName(target));
+        log.info("MOVE {} -> {}", srcPath, target);
+        response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204
     }
 
     /**
-     * Description:
-     * 获取指定路径下的所有子文件
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param realURI 文件路径
-     * @return 子文件列表
+     * 处理 COPY
      */
-    private List<FileInfo> getSubFiles(String realURI) {
-        List<FileInfo> files =  fileMapper.getFilesByPathPrefix(realURI);
-        files.removeIf(file -> file.getWebdavPath().equals(realURI));
-        return files;
-    }
-
-    /**
-     * Description:
-     * 移动子文件
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param subFiles 子文件列表
-     * @param target 目标路径
-     * @param realURI 源路径
-     */
-    private void handleMoveSubFiles(List<FileInfo> subFiles, String target, String realURI) {
-        if (subFiles == null) {
+    private void handleCopy(HttpServletRequest request, HttpServletResponse response, String realURI) {
+        if (!isOperationAllowed(c -> c.getAllowCopy())) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
-        log.info("开始移动子文件");
-        for (FileInfo file : subFiles) {
-            String targetPath = target;
-            String sourcePath = file.getWebdavPath();
-            targetPath = targetPath + sourcePath.substring(realURI.length());
-            FileInfo targetFile = getFileByWebdavPathWithFallback(targetPath);
-            fileMapper.deleteFileByWebDav(sourcePath);
-            if (targetFile != null) {
-                fileMapper.updateFileAttributeByWebDav(file, targetPath);
-            } else {
-                fileMapper.moveFile(file, targetPath);
-            }
+        FileInfo sourceFile = locate(realURI);
+        if (sourceFile == null) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
         }
-        log.info("子文件移动完成");
+        String destination = request.getHeader("Destination");
+        if (destination == null) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        String srcPath = sourceFile.getWebdavPath();
+        boolean isDir = sourceFile.isDir();
+        String target = getTargetPath(request, destination, isDir);
+        if (target == null || target.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        if (target.equals(srcPath)) {
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            return;
+        }
+        String overwrite = request.getHeader("Overwrite");
+        if (overwrite == null || overwrite.isEmpty()) {
+            overwrite = "T";
+        }
+        FileInfo targetFile = locate(target);
+        if (targetFile != null && "F".equalsIgnoreCase(overwrite)) {
+            response.setStatus(HttpServletResponse.SC_CONFLICT);
+            return;
+        }
+        if (targetFile != null) {
+            fileMapper.deleteFileByWebDav(targetFile.getWebdavPath());
+        }
+        // 复制（file_id 共享同一 Telegram 文件，属性保留）
+        if (isDir) {
+            fileMapper.copyWebdavByPrefix(srcPath, target);
+        } else {
+            fileMapper.copyWebdavExact(srcPath, target);
+        }
+        // 同步顶层项的文件名为新路径对应的名称（子项的 file_name 仍正确，无需更新）
+        fileMapper.updateFileNameByPath(target, displayName(target));
+        log.info("COPY {} -> {}", srcPath, target);
+        response.setStatus(HttpServletResponse.SC_CREATED); // 201
     }
 
-
     /**
-     * Description:
      * 处理新建文件夹
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request WebDAV请求
-     * @param response WebDAV响应
-     * @param realURI 请求路径
      */
     private void handleMkCol(HttpServletRequest request, HttpServletResponse response, String realURI) {
-        FileInfo fileInfo = getFileByWebdavPathWithFallback(realURI);
-        if (fileInfo != null) {
-            response.setStatus(405);
+        if (!isOperationAllowed(c -> c.getAllowMkdir())) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
-        fileInfo = FileInfo.builder().fileId("dir")
+        // 规范化目录路径：统一以 / 结尾，保证后续 PROPFIND/列表一致
+        if (!realURI.endsWith("/")) {
+            realURI = realURI + "/";
+        }
+        FileInfo existing = locate(realURI);
+        if (existing != null) {
+            response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED); // 405
+            return;
+        }
+        FileInfo fileInfo = FileInfo.builder()
+                .fileId("dir")
                 .fileName(StringUtil.getDisplayName(realURI, true))
                 .downloadUrl("dir")
                 .uploadTime(LocalDateTime.now(ZoneOffset.UTC).toEpochSecond(ZoneOffset.UTC))
@@ -207,286 +259,205 @@ public class WebDavServiceImpl implements WebDavService {
                 .dir(true)
                 .build();
         fileMapper.insertFile(fileInfo);
-        log.info("新增文件夹路径{}", realURI);
-        response.setStatus(201);
+        log.info("MKCOL {}", realURI);
+        response.setStatus(HttpServletResponse.SC_CREATED); // 201
     }
 
     /**
-     * Description:
-     * 处理文件复制
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request WebDAV请求
-     * @param response WebDAV响应
-     * @param realURI 请求路径
-     */
-    private void handleCopy(HttpServletRequest request, HttpServletResponse response, String realURI) {
-        String target = request.getHeader("Destination");
-        String overwrite = request.getHeader("Overwrite");
-        FileInfo sourceFile = getFileByWebdavPathWithFallback(realURI);
-        if (target == null || realURI == null || sourceFile == null) {
-            response.setStatus(400);
-            return;
-        }
-        target = getTargetPath(request, target, sourceFile.isDir());
-        // 如果移动后和移动前路径相同，直接返回
-        if (target.equals(realURI)) {
-            response.setStatus(204);
-            return;
-        }
-        FileInfo targetFile = getFileByWebdavPathWithFallback(target);
-        List<FileInfo> subFiles = getSubFiles(realURI);
-        sourceFile.setFileName(StringUtil.getDisplayName(target, sourceFile.isDir()));
-        if (targetFile != null && overwrite.equalsIgnoreCase("F")) {
-            response.setStatus(409);
-        } else if (overwrite.equalsIgnoreCase("T") && targetFile != null) {
-            // 允许覆盖且目标路径有该文件名，更新目标文件路径的属性
-            fileMapper.updateFileAttributeByWebDav(sourceFile, target);
-            handleCopySubFiles(subFiles, target, realURI);
-            response.setStatus(204);
-            log.info("{} 移动到 {}", realURI, target);
-        } else {
-            // 目标路径没有该文件名
-            fileMapper.moveFile(sourceFile, target);
-            handleCopySubFiles(subFiles, target, realURI);
-            response.setStatus(204);
-            log.info("{} 移动到 {}", realURI, target);
-        }
-    }
-
-    /**
-     * Description:
-     * 复制子文件
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param subFiles 子文件列表
-     * @param target 目标路径
-     * @param realURI 源路径
-     */
-    private void handleCopySubFiles(List<FileInfo> subFiles, String target, String realURI) {
-        if (subFiles == null) {
-            return;
-        }
-        log.info("开始复制子文件");
-        for (FileInfo file : subFiles) {
-            String targetPath = target;
-            String sourcePath = file.getWebdavPath();
-            targetPath = targetPath + sourcePath.substring(realURI.length());
-            FileInfo targetFile = getFileByWebdavPathWithFallback(targetPath);
-            if (targetFile != null) {
-                fileMapper.updateFileAttributeByWebDav(file, targetPath);
-            } else {
-                fileMapper.moveFile(file, targetPath);
-            }
-        }
-        log.info("子文件复制完成");
-    }
-
-
-    private static final DateTimeFormatter RFC1123_FORMATTER =
-            DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("GMT"));
-
-    /**
-     * Description:
-     * 处理目录探测
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request WebDAV请求
-     * @param response WebDAV响应
-     * @param realURI 请求路径
-     * @throws IOException IO异常
+     * 处理 PROPFIND（目录探测）
      */
     private void handlePropFind(HttpServletRequest request, HttpServletResponse response, String realURI) throws IOException {
-        // 步骤1：存在性检查
-        // 客户端可能会请求一个不存在的路径，我们必须先告诉它"找不到"
-        FileInfo currentItem = getFileByWebdavPathWithFallback(realURI);
+        // 规范化根路径
+        if (realURI.isEmpty()) {
+            realURI = "/";
+        }
+        // 查找当前资源（支持无尾斜杠访问目录）
+        FileInfo currentItem = locate(realURI);
         if (!realURI.equals("/") && currentItem == null) {
-            log.info("PROPFIND请求的资源不存在: {}", realURI);
+            log.info("PROPFIND 资源不存在: {}", realURI);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
-        try {
-            final String CONTEXT_PATH = "/webdav";
-            response.setStatus(207); // 207 Multi-Status
-            response.setContentType("application/xml;charset=UTF-8");
-
-            // 如果当前是文件夹，就去获取它下面的子文件；如果是文件，这个列表就是空的
-            List<FileInfo> childFiles;
-            if (realURI.equals("/") || (currentItem.isDir())) {
-                childFiles = webDavFileService.listFiles(realURI);
-            } else {
-                childFiles = java.util.Collections.emptyList(); // 如果是文件，就没有子项
-            }
-
-            StringBuilder xmlBuilder = new StringBuilder();
-            xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-                    .append("<D:multistatus xmlns:D=\"DAV:\">\n");
-
-            String currentHref = CONTEXT_PATH + realURI;
-            xmlBuilder.append("<D:response>\n")
-                    .append("<D:href>").append(escapeXml(currentHref)).append("</D:href>\n")
-                    .append("<D:propstat>\n")
-                    .append("<D:prop>\n")
-                    .append("<D:displayname>").append(escapeXml(getDisplayName(realURI))).append("</D:displayname>\n");
-
-            // 如果是根目录，或者是一个存在的对象，我们才添加更多属性
-            if (realURI.equals("/") || currentItem != null) {
-                long modifiedTime = realURI.equals("/") ? Instant.now().getEpochSecond() : currentItem.getUploadTime();
-                String lastModifiedStr = RFC1123_FORMATTER.format(Instant.ofEpochSecond(modifiedTime));
-                xmlBuilder.append("<D:getlastmodified>").append(lastModifiedStr).append("</D:getlastmodified>\n");
-
-                // 根据它是文件还是文件夹，返回正确的 resourcetype！
-                if (realURI.equals("/") || currentItem.isDir()) {
-                    xmlBuilder.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
-                } else {
-                    xmlBuilder.append("<D:resourcetype/>\n");
-                    xmlBuilder.append("<D:getcontentlength>").append(currentItem.getFullSize()).append("</D:getcontentlength>\n");
-                }
-            }
-
-            xmlBuilder.append("</D:prop>\n")
-                    .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
-                    .append("</D:propstat>\n")
-                    .append("</D:response>\n");
-
-            // 遍历子文件列表，为每个子项构建回复
-            for (FileInfo file : childFiles) {
-                String fileName = file.getFileName();
-                boolean isDir = file.isDir();
-                long size = file.getFullSize();
-                long modifiedTime = file.getUploadTime();
-
-                // 构造子项的相对路径
-                String relativeFilePath = realURI.endsWith("/") ? realURI + fileName : realURI + "/" + fileName;
-                String fileHref = CONTEXT_PATH + relativeFilePath;
-                String lastModifiedStr = RFC1123_FORMATTER.format(Instant.ofEpochSecond(modifiedTime));
-
-                xmlBuilder.append("<D:response>\n")
-                        .append("<D:href>").append(escapeXml(fileHref)).append("</D:href>\n")
-                        .append("<D:propstat>\n")
-                        .append("<D:prop>\n")
-                        .append("<D:displayname>").append(escapeXml(fileName)).append("</D:displayname>\n")
-                        .append("<D:getlastmodified>").append(lastModifiedStr).append("</D:getlastmodified>\n");
-
-                if (isDir) {
-                    xmlBuilder.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
-                } else {
-                    xmlBuilder.append("<D:resourcetype/>\n");
-                    xmlBuilder.append("<D:getcontentlength>").append(size).append("</D:getcontentlength>\n");
-                }
-
-                xmlBuilder.append("</D:prop>\n")
-                        .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
-                        .append("</D:propstat>\n")
-                        .append("</D:response>\n");
-            }
-
-            xmlBuilder.append("</D:multistatus>");
-            response.getWriter().write(xmlBuilder.toString());
-        } catch (Exception e) {
-            log.error("PROPFIND请求处理失败: {}", e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        // 规范化当前路径：目录统一以 / 结尾
+        String currentPath = realURI;
+        if (currentItem != null && currentItem.isDir() && !currentPath.endsWith("/")) {
+            currentPath = currentPath + "/";
         }
+
+        // 解析 Depth 头（默认 1）
+        String depthHeader = request.getHeader("Depth");
+        int depth = 1;
+        if (depthHeader != null) {
+            if ("0".equals(depthHeader)) {
+                depth = 0;
+            } else if ("infinity".equalsIgnoreCase(depthHeader)) {
+                depth = 1; // 限制为 1，避免深度递归拖垮性能
+            }
+        }
+
+        response.setStatus(207);
+        response.setContentType("application/xml;charset=UTF-8");
+
+        StringBuilder xml = new StringBuilder();
+        xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+                .append("<D:multistatus xmlns:D=\"DAV:\">\n");
+
+        // 当前资源自身
+        appendResponse(xml, currentPath, realURI.equals("/") ? null : currentItem);
+
+        // Depth:1 时附加直接子项
+        if (depth >= 1 && (realURI.equals("/") || (currentItem != null && currentItem.isDir()))) {
+            List<FileInfo> childFiles = webDavFileService.listFiles(currentPath);
+            for (FileInfo file : childFiles) {
+                // 直接用数据库中的规范 webdav_path 作为 href/displayname 来源，避免 file_name 过时
+                String childPath = file.getWebdavPath();
+                appendResponse(xml, childPath, file);
+            }
+        }
+
+        xml.append("</D:multistatus>");
+        response.getWriter().write(xml.toString());
     }
 
     /**
-     * Description:
-     * XML转义方法
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param input 输入字符串
-     * @return 转义后的字符串
+     * 追加单个 response 节点
+     * @param path 规范化后的路径（目录以 / 结尾）
+     * @param file 文件信息，根目录时为 null
+     */
+    private void appendResponse(StringBuilder xml, String path, FileInfo file) {
+        boolean isCollection = path.equals("/") || (file != null && file.isDir());
+        String href = CONTEXT_PATH + path;
+        String name = displayName(path);
+
+        xml.append("<D:response>\n")
+                .append("<D:href>").append(escapeXml(href)).append("</D:href>\n")
+                .append("<D:propstat>\n")
+                .append("<D:prop>\n")
+                .append("<D:displayname>").append(escapeXml(name)).append("</D:displayname>\n");
+
+        long modifiedTime = (file == null) ? Instant.now().getEpochSecond() : file.getUploadTime();
+        xml.append("<D:getlastmodified>").append(RFC1123_FORMATTER.format(Instant.ofEpochSecond(modifiedTime))).append("</D:getlastmodified>\n");
+
+        if (isCollection) {
+            xml.append("<D:resourcetype><D:collection/></D:resourcetype>\n");
+        } else {
+            xml.append("<D:resourcetype/>\n");
+            long size = file != null && file.getFullSize() != null ? file.getFullSize() : 0L;
+            xml.append("<D:getcontentlength>").append(size).append("</D:getcontentlength>\n");
+            xml.append("<D:getcontenttype>application/octet-stream</D:getcontenttype>\n");
+        }
+
+        xml.append("</D:prop>\n")
+                .append("<D:status>HTTP/1.1 200 OK</D:status>\n")
+                .append("</D:propstat>\n")
+                .append("</D:response>\n");
+    }
+
+    /**
+     * 计算显示名：去掉尾部斜杠后取最后一段；根目录返回空字符串
+     */
+    private String displayName(String path) {
+        if (path == null || path.equals("/")) {
+            return "";
+        }
+        String name = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        int idx = name.lastIndexOf('/');
+        return name.substring(idx + 1);
+    }
+
+    /**
+     * XML 转义
      */
     private String escapeXml(String input) {
         if (input == null) {
             return "";
         }
         return input.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&#39;");
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     /**
-     * Description:
-     * 获取显示名称
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param path 路径
-     * @return 显示名称
-     */
-    private String getDisplayName(String path) {
-        return path.substring(path.lastIndexOf('/'));
-    }
-
-    /**
-     * Description:
-     * 获取目标路径
-     * @author SkyDev
-     * @date 2025-09-01 10:00:00
-     * @param request HTTP请求
-     * @param target 目标路径
-     * @param dir 是否为目录
-     * @return 处理后的目标路径
+     * 解析 Destination 头为目标 webdav 路径，并 URL 解码；目录补尾斜杠
      */
     private String getTargetPath(HttpServletRequest request, String target, boolean dir) {
         String prefix = StringUtil.getPrefix(request);
-        target =  target.substring((prefix + "/webdav").length());
-        if (dir) {
-            target = target + "/";
+        String base = prefix + CONTEXT_PATH;
+        if (!target.startsWith(base)) {
+            return null;
         }
-        return target;
+        String path = target.substring(base.length());
+        try {
+            path = UriUtils.decode(path, "UTF-8");
+        } catch (Exception e) {
+            log.warn("Destination 解码失败: {}", target);
+        }
+        if (path.isEmpty()) {
+            path = "/";
+        }
+        if (dir && !path.endsWith("/")) {
+            path = path + "/";
+        }
+        return path;
     }
 
     /**
-     * Description:
-     * 尝试通过WebDAV路径查找文件，支持URL编码和大小写不敏感
-     * @author SkyDev
-     * @date 2025-09-01 10:05:04
-     * @param path WebDAV路径
-     * @return 文件信息，如果找不到则返回null
+     * 检查 WebDAV 配置中的某项操作是否允许
      */
-    private FileInfo getFileByWebdavPathWithFallback(String path) {
-        // 首先尝试原始路径
+    private boolean isOperationAllowed(java.util.function.Function<WebDavConfig, Boolean> getter) {
+        try {
+            WebDavConfig config = webDavConfigService.getWebDavConfig();
+            return config != null && Boolean.TRUE.equals(getter.apply(config));
+        } catch (Exception e) {
+            log.error("检查 WebDAV 操作权限失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 定位 WebDAV 资源：先精确匹配，再尝试 URL 解码，再尝试无尾斜杠→有尾斜杠（目录），再大小写不敏感
+     * 返回的 FileInfo.webdavPath 为数据库中的规范路径
+     */
+    private FileInfo locate(String path) {
+        if (path == null || path.isEmpty() || path.equals("/")) {
+            return null;
+        }
         FileInfo file = fileMapper.getFileByWebdavPath(path);
         if (file != null) {
             return file;
         }
-        
-        // 如果找不到，尝试URL解码后的路径
+        // URL 解码
         try {
-            String decodedPath = UriUtils.decode(path, "UTF-8");
-            if (!decodedPath.equals(path)) {
-                file = fileMapper.getFileByWebdavPath(decodedPath);
+            String decoded = UriUtils.decode(path, "UTF-8");
+            if (!decoded.equals(path)) {
+                file = fileMapper.getFileByWebdavPath(decoded);
                 if (file != null) {
-                    log.debug("Found file using decoded path: {} -> {}", path, decodedPath);
                     return file;
                 }
             }
-        } catch (Exception e) {
-            log.warn("Failed to decode URL: {}", path);
+        } catch (Exception ignored) {
         }
-        
-        // 如果仍然找不到，尝试不区分大小写的查找
+        // 目录：无尾斜杠 → 有尾斜杠
+        if (!path.endsWith("/")) {
+            file = fileMapper.getFileByWebdavPath(path + "/");
+            if (file != null) {
+                return file;
+            }
+        }
+        // 大小写不敏感
         try {
-            // 获取父目录路径
-            String parentPath = path.substring(0, path.lastIndexOf('/') + 1);
-            String fileName = path.substring(path.lastIndexOf('/') + 1);
-            
-            // 获取父目录下的所有文件
-            List<FileInfo> filesInDir = fileMapper.getFilesByPathPrefix(parentPath);
-            for (FileInfo f : filesInDir) {
-                if (f.getWebdavPath().equalsIgnoreCase(path)) {
-                    log.debug("Found file using case-insensitive match: {}", path);
+            String parent = path.substring(0, path.lastIndexOf('/') + 1);
+            List<FileInfo> siblings = fileMapper.getFilesByPathPrefix(parent);
+            for (FileInfo f : siblings) {
+                if (f.getWebdavPath().equalsIgnoreCase(path) || f.getWebdavPath().equalsIgnoreCase(path + "/")) {
                     return f;
                 }
             }
-        } catch (Exception e) {
-            log.warn("Failed to perform case-insensitive search for: {}", path);
+        } catch (Exception ignored) {
         }
-        
         return null;
     }
 }

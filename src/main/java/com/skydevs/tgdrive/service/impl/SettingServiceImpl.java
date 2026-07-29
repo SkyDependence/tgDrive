@@ -42,5 +42,12 @@ public class SettingServiceImpl implements SettingService {
         String allowRegistration = this.getSetting(SettingConstant.ALLOW_REGISTRATION);
         return "true".equals(allowRegistration);
     }
+
+    @Override
+    public boolean isVisitorAllowed() {
+        String allowVisitor = this.getSetting(SettingConstant.ALLOW_VISITOR);
+        // 配置缺失时默认开放，保持向后兼容
+        return allowVisitor == null || "true".equalsIgnoreCase(allowVisitor);
+    }
 }
 

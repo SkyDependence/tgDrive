@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import com.skydevs.tgdrive.exception.BaseException;
 import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.service.WebDavService;
 import com.skydevs.tgdrive.utils.StringUtil;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +43,14 @@ public class WebDavController {
      */
     @GetMapping("/**")
     public ResponseEntity<StreamingResponseBody> handleGet(HttpServletRequest request) {
-        return webDavFileService.downloadByWebDav(request.getRequestURI().substring("/webdav".length()));
+        // URL 解码：getRequestURI() 返回未解码路径，中文等特殊字符以 %xx 编码
+        String path = request.getRequestURI().substring("/webdav".length());
+        try {
+            path = UriUtils.decode(path, "UTF-8");
+        } catch (Exception e) {
+            log.warn("WebDAV 下载路径解码失败: {}", path);
+        }
+        return webDavFileService.downloadByWebDav(path);
     }
 
     /**
@@ -50,9 +59,19 @@ public class WebDavController {
     @DeleteMapping("/**")
     public void handleDelete(HttpServletRequest request, HttpServletResponse response) {
         try {
+            // URL 解码：getRequestURI() 返回未解码路径，中文等特殊字符以 %xx 编码
             String path = StringUtil.getPath(request.getRequestURI());
+            try {
+                path = UriUtils.decode(path, "UTF-8");
+            } catch (Exception e) {
+                log.warn("WebDAV 删除路径解码失败: {}", path);
+            }
             webDavFileService.deleteByWebDav(path);
             response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204 No Content
+        } catch (BaseException e) {
+            // 配置禁用等业务异常返回 403
+            log.warn("WebDAV 删除被拒绝: {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         } catch (Exception e) {
             log.error("文件删除失败: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500

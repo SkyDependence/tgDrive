@@ -23,4 +23,10 @@ public final class SettingConstant {
      * @date 2025-08-18 10:19:39
      */
     public static final String ALLOW_REGISTRATION = "allow_registration";
+
+    /**
+     * Description:
+     * 是否开放访客登录，true为开放，false为关闭
+     */
+    public static final String ALLOW_VISITOR = "allow_visitor";
 }
