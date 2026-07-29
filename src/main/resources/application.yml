@@ -2,11 +2,19 @@ server:
   port: 8085
   tomcat:
     reject-illegal-header: false
-    connection-timeout: 60000
+    # 连接超时调大到 10 分钟，避免大文件上传/下载等长时间连接被过早断开（默认 60s 对慢链路偏短）
+    connection-timeout: 600000
+    # keep-alive 超时同步调大，长下载复用连接更稳定
+    keep-alive-timeout: 600000
+  # 开启响应 gzip 压缩：JS/CSS/JSON 等文本资源传输体积可减少 60%~70%
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,text/plain,text/javascript,application/javascript,application/json,application/xml,image/svg+xml
+    min-response-size: 1024
 
 sa-token:
   token-name: tgdrive      # token名称（默认：satoken）
-  timeout: 36000000        # token有效期，单位：秒（默认30分钟）
+  timeout: 604800          # token有效期，单位：秒，604800 秒 = 7 天（避免 Token 被盗后长期有效）
   is-concurrent: true     # 是否允许同一账号多地登录（默认：true）
   is-share: true           # 是否在同一个会话中共享 Token（默认：true）
   token-style: uuid        # token 生成的样式（默认：uuid）
@@ -17,24 +25,35 @@ spring:
     baseline-on-migrate: true
   servlet:
     multipart:
-      max-file-size: -1
-      max-request-size: -1
+      # 限制单次上传大小，防止无限制上传导致磁盘/内存耗尽 DoS（网盘场景设为较大值，可按需调整）
+      max-file-size: 5GB
+      max-request-size: 6GB
   mvc:
     view:
       prefix: /
       suffix: html
     async:
       request-timeout: -1
-  profiles:
-    active: dev
+  # 生产部署不激活 dev profile，避免 DevTools 等开发期行为被启用
   main:
     allow-circular-references: true
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
   datasource:
     url: jdbc:sqlite:db/tgDrive.db
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   sql:
     init:
-      mode: always
+      mode: never
 mybatis:
   #mapper配置文件
   mapper-locations: classpath:mapper/*.xml

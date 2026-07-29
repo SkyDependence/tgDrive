@@ -88,6 +88,18 @@ public class WebDavConfigServiceImpl implements WebDavConfigService {
     }
     
     @Override
+    public boolean isAuthRequired() {
+        try {
+            WebDavConfig config = getWebDavConfig();
+            // 默认需要认证：仅当明确配置为 false 时才免认证
+            return config == null || !Boolean.FALSE.equals(config.getRequireAuth());
+        } catch (Exception e) {
+            log.error("检查WebDAV认证要求失败: {}", e.getMessage(), e);
+            return true;
+        }
+    }
+
+    @Override
     public boolean hasWebDavPermission(String userRole) {
         try {
             WebDavConfig config = getWebDavConfig();
@@ -99,8 +111,16 @@ public class WebDavConfigServiceImpl implements WebDavConfigService {
             if ("all".equals(allowedRoles)) {
                 return true;
             }
-            
-            return allowedRoles != null && allowedRoles.contains(userRole);
+            if (allowedRoles == null || userRole == null) {
+                return false;
+            }
+            // 精确匹配（支持逗号分隔的多角色配置），避免 contains 子串误匹配导致越权
+            for (String role : allowedRoles.split(",")) {
+                if (role.trim().equals(userRole)) {
+                    return true;
+                }
+            }
+            return false;
         } catch (Exception e) {
             log.error("检查WebDAV权限失败: {}", e.getMessage(), e);
             return false;

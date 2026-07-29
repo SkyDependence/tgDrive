@@ -15,6 +15,6 @@ public class AdminChangePasswordRequest {
     @NotBlank(message = "用户名不能为空")
     private String username;
     @NotBlank(message = "新密码不能为空")
-    @Length(min = 5, message = "新密码长度不能少于5位")
+    @Length(min = 6, max = 20, message = "密码长度需为 6 到 20 位")
     private String newPassword;
 }

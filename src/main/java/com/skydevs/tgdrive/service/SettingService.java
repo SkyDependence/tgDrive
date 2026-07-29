@@ -41,4 +41,11 @@ public interface SettingService {
      * @return true为开放，false为关闭
      */
     boolean isRegistrationAllowed();
+
+    /**
+     * Description:
+     * 检查是否开放访客登录
+     * @return true为开放，false为关闭
+     */
+    boolean isVisitorAllowed();
 }

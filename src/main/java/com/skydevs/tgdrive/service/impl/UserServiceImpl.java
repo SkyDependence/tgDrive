@@ -5,11 +5,13 @@ import com.skydevs.tgdrive.dto.AuthRequest;
 import com.skydevs.tgdrive.dto.ChangePasswordRequest;
 import com.skydevs.tgdrive.dto.RegisterRequest;
 import com.skydevs.tgdrive.entity.User;
+import com.skydevs.tgdrive.exception.BaseException;
 import com.skydevs.tgdrive.exception.user.PasswordErrorException;
 import com.skydevs.tgdrive.exception.user.PasswordValidationException;
 import com.skydevs.tgdrive.exception.user.UserAlreadyExistsException;
 import com.skydevs.tgdrive.exception.user.UserNotFoundException;
 import com.skydevs.tgdrive.mapper.UserMapper;
+import com.skydevs.tgdrive.service.SettingService;
 import com.skydevs.tgdrive.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final SettingService settingService;
 
     /**
      * 根据用户名返回用户
@@ -69,6 +72,11 @@ public class UserServiceImpl implements UserService {
 
         if (user == null) {
             throw new UserNotFoundException();
+        }
+
+        // 访客功能关闭时，禁止访客账户登录（防止知道默认凭证的人绕过前端隐藏直接登录）
+        if ("visitor".equals(user.getRole()) && !settingService.isVisitorAllowed()) {
+            throw new BaseException("访客登录已关闭");
         }
 
         if (!passwordEncoder.matches(authRequest.getPassword(), user.getPassword())) {
@@ -186,12 +194,17 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new UserNotFoundException("用户不存在");
         }
-        
+
         // 不允许删除管理员账户
         if ("admin".equals(user.getRole())) {
-            throw new RuntimeException("不能删除管理员账户");
+            throw new BaseException("不能删除管理员账户");
         }
-        
+
+        // 不允许删除系统内置访客账户
+        if ("visitor".equals(user.getUsername())) {
+            throw new BaseException("不能删除系统访客账户");
+        }
+
         userMapper.deleteUser(userId);
         log.info("管理员删除用户成功: {}", user.getUsername());
     }

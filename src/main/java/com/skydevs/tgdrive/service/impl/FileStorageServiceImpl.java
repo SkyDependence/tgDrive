@@ -11,6 +11,7 @@ import com.pengrad.telegrambot.response.SendResponse;
 import com.skydevs.tgdrive.dto.UploadFile;
 import com.skydevs.tgdrive.entity.BigFileInfo;
 import com.skydevs.tgdrive.entity.FileInfo;
+import com.skydevs.tgdrive.exception.BaseException;
 import com.skydevs.tgdrive.exception.user.InsufficientPermissionException;
 import com.skydevs.tgdrive.exception.file.UploadFileIsNullException;
 import com.skydevs.tgdrive.mapper.FileMapper;
@@ -69,22 +70,45 @@ public class FileStorageServiceImpl implements FileStorageService {
     // 控制同时运行的任务数量
     private final int PERMITS = 5;
 
+    // 上传幂等去重：记录“正在上传中”的文件标识(userId:filename:size)。
+    // 移动端网络切换/连接中断时，浏览器可能对同一个 multipart POST 自动重发，
+    // 导致同一文件被完整上传两遍并写入两条记录。用内存锁拦截并发的重复上传，
+    // 第二个请求直接失败，避免重复传 Telegram 与重复写库。
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> uploadingKeys =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private String buildUploadKey(Long userId, String filename, long size) {
+        return (userId == null ? "anon" : userId) + ":" + filename + ":" + size;
+    }
+
     @Override
     public UploadFile getUploadFile(MultipartFile multipartFile, HttpServletRequest request, Long userId) {
         UploadFile uploadFile = new UploadFile();
         String downloadUrl;
         if (multipartFile != null && !multipartFile.isEmpty()) {
+            String filename = multipartFile.getOriginalFilename();
+            long size = multipartFile.getSize();
+            // 幂等锁：同一 (userId, filename, size) 正在上传时，拒绝并发重复上传，
+            // 防止移动端连接中断导致的 multipart 自动重发把同一文件传两遍
+            String uploadKey = buildUploadKey(userId, filename, size);
+            if (uploadingKeys.putIfAbsent(uploadKey, System.currentTimeMillis()) != null) {
+                log.warn("检测到重复上传请求，已忽略。userId={}, filename={}, size={}", userId, filename, size);
+                throw new BaseException("该文件正在上传中，请勿重复提交");
+            }
             try (InputStream inputStream = multipartFile.getInputStream()) {
                 // 优先使用自定义URL，如果没有配置则使用请求中的URL
                 String prefix = StringUtil.getPrefix(request);
-                String filename = multipartFile.getOriginalFilename();
-                long size = multipartFile.getSize();
 
-                // 使用FileStorageService上传文件
-                String fileID = uploadFile(inputStream, filename, size);
+                // 使用FileStorageService上传文件（传入 userId 用于按用户推送上传进度）
+                String fileID;
+                if (size > MAX_FILE_SIZE) {
+                    fileID = uploadLargeFile(inputStream, filename, size, userId);
+                } else {
+                    fileID = uploadSmallFile(inputStream, filename, userId);
+                }
                 
                 // 无论大小，上传流程成功后发送完成消息
-                uploadProgressWebSocketHandler.sendUploadComplete(filename);
+                uploadProgressWebSocketHandler.sendUploadComplete(userId, filename);
 
                 downloadUrl = prefix + "/d/" + fileID;
 
@@ -102,6 +126,9 @@ public class FileStorageServiceImpl implements FileStorageService {
             } catch (IOException e) {
                 log.error("文件上传失败，响应信息：{}", e.getMessage());
                 throw new RuntimeException("文件上传失败");
+            } finally {
+                // 上传结束（成功或失败）后释放幂等锁
+                uploadingKeys.remove(uploadKey);
             }
         } else {
             throw new UploadFileIsNullException();
@@ -113,16 +140,17 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     public String uploadFile(InputStream inputStream, String filename, long size) {
+        // 接口方法无 userId 上下文，传 null 表示不按用户推送进度
         if (size > MAX_FILE_SIZE) {
-            return uploadLargeFile(inputStream, filename, size);
+            return uploadLargeFile(inputStream, filename, size, null);
         } else {
-            return uploadSmallFile(inputStream, filename);
+            return uploadSmallFile(inputStream, filename, null);
         }
     }
 
-    private String uploadLargeFile(InputStream inputStream, String filename, long size) {
+    private String uploadLargeFile(InputStream inputStream, String filename, long size, Long userId) {
         try {
-            List<String> fileIds = sendFileStreamInChunks(inputStream, filename);
+            List<String> fileIds = sendFileStreamInChunks(inputStream, filename, size, userId);
             return createRecordFile(filename, size, fileIds);
         } catch (Exception e) {
             log.error("大文件上传失败: {}", e.getMessage(), e);
@@ -133,10 +161,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     /**
      * 上传小文件
      */
-    private String uploadSmallFile(InputStream inputStream, String filename) {
+    private String uploadSmallFile(InputStream inputStream, String filename, Long userId) {
         try {
             // 发送单文件上传进度
-            uploadProgressWebSocketHandler.sendUploadProgress(filename, 0, 0, 1);
+            uploadProgressWebSocketHandler.sendUploadProgress(userId, filename, 0, 0, 1);
 
             // 小于10MB的GIF会被TG转换为MP4，对文件后缀进行处理
             String uploadFilename = filename;
@@ -149,37 +177,54 @@ public class FileStorageServiceImpl implements FileStorageService {
             Integer messageID=message.messageId();
 
             // 发送上传完成进度
-            uploadProgressWebSocketHandler.sendUploadProgress(filename, 100, 1, 1);
-            uploadProgressWebSocketHandler.sendUploadComplete(filename);
+            uploadProgressWebSocketHandler.sendUploadProgress(userId, filename, 100, 1, 1);
+            uploadProgressWebSocketHandler.sendUploadComplete(userId, filename);
 
             log.info("小文件上传成功，File ID：{}， 文件名：{}", fileID, filename);
             return fileID;
         } catch (Exception e) {
             log.error("小文件上传失败: {}", e.getMessage(), e);
-            uploadProgressWebSocketHandler.sendUploadError(filename, "文件上传失败: " + e.getMessage());
+            uploadProgressWebSocketHandler.sendUploadError(userId, filename, "文件上传失败: " + e.getMessage());
             throw new RuntimeException("小文件上传失败", e);
         }
     }
 
     /**
-     * 分块上传文件
+     * 分块上传文件（流式：边读边传，不再一次性把整个文件的所有分块缓存进内存）。
+     * 内存占用上限约为 PERMITS × MAX_FILE_SIZE（并发在传的分块），与文件总大小解耦，避免大文件 OOM。
+     * 通过信号量限制“已读入内存但尚未上传完成”的分块数量，形成对读取速度的背压。
      */
-    private List<String> sendFileStreamInChunks(InputStream inputStream, String filename) {
+    private List<String> sendFileStreamInChunks(InputStream inputStream, String filename, long size, Long userId) {
         List<CompletableFuture<String>> futures = new ArrayList<>();
+        // 信号量控制在途分块数量：读取线程在提交新分块前必须先拿到许可，
+        // 从而保证同时驻留内存的分块不超过 PERMITS 个，实现读取-上传背压
         Semaphore semaphore = new Semaphore(PERMITS);
 
-        final AtomicInteger totalChunks = new AtomicInteger(0);
         final AtomicInteger completedChunks = new AtomicInteger(0);
+        // 已提交（已读入内存并进入上传队列）的分块数
+        final AtomicInteger submittedChunks = new AtomicInteger(0);
+        // 预计算总分块数：文件总大小已知，据此固定进度分母，避免前端“分片总数从小到大跳变”。
+        // 空文件按 1 块处理，避免除零；实际读取块数理论上与此一致。
+        final int expectedTotalChunks = size > 0
+                ? (int) ((size + MAX_FILE_SIZE - 1) / MAX_FILE_SIZE)
+                : 1;
+        // 记录首个失败：任一分块上传失败即在此登记，读取循环据此 fail-fast，
+        // 避免某分块已失败却仍把后续整个大文件读入内存并上传到 Telegram（浪费内存、流量与请求）
+        final java.util.concurrent.atomic.AtomicReference<Throwable> firstError = new java.util.concurrent.atomic.AtomicReference<>();
 
         try (BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream)) {
-            byte[] buffer = new byte[MAX_FILE_SIZE];
-            int partIndex = 0;
-            List<byte[]> allChunks = new ArrayList<>();
+            int chunkIndex = 0;
 
-            // 第一遍：读取所有分块数据
+            // 边读边传：读满一块（或读到流末尾）就立即提交上传，读完即释放该块内存
             while (true) {
+                // fail-fast：已有分块失败则停止读取后续数据，尽早中断整个上传
+                if (firstError.get() != null) {
+                    break;
+                }
+
+                byte[] buffer = new byte[MAX_FILE_SIZE];
                 int offset = 0;
-                while(offset < MAX_FILE_SIZE) {
+                while (offset < MAX_FILE_SIZE) {
                     int byteRead = bufferedInputStream.read(buffer, offset, MAX_FILE_SIZE - offset);
                     if (byteRead == -1) {
                         break;
@@ -191,20 +236,12 @@ public class FileStorageServiceImpl implements FileStorageService {
                     break;
                 }
 
-                byte[] chunkData = Arrays.copyOf(buffer, offset);
-                allChunks.add(chunkData);
-                partIndex++;
-            }
-
-            totalChunks.set(allChunks.size());
-            log.info("文件 {} 将被分为 {} 个分块上传", filename, totalChunks.get());
-
-            // 第二遍：提交所有上传任务
-            for (int i = 0; i < allChunks.size(); i++) {
-                final int chunkIndex = i;
-                final byte[] chunkData = allChunks.get(i);
+                // 精确裁剪到实际读取长度（最后一块通常不足 MAX_FILE_SIZE）
+                final byte[] chunkData = (offset == MAX_FILE_SIZE) ? buffer : Arrays.copyOf(buffer, offset);
                 final String partName = filename + "_part" + chunkIndex;
+                submittedChunks.incrementAndGet();
 
+                // 背压：在途分块达到上限时阻塞读取，防止内存无界增长
                 semaphore.acquire();
 
                 CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
@@ -215,42 +252,53 @@ public class FileStorageServiceImpl implements FileStorageService {
                         if (fileID != null) {
                             log.info("分块上传成功，File ID：{}， 文件名：{}", fileID, partName);
 
-                            // 更新进度
                             int completed = completedChunks.incrementAndGet();
-                            double percentage = (double) completed / totalChunks.get() * 100;
-                            uploadProgressWebSocketHandler.sendUploadProgress(filename, percentage, completed, totalChunks.get());
+                            // 分母使用预计算的总块数，保证进度单调递增、总数稳定；
+                            // 兜底取两者较大值，防止极端情况下 completed 超过预算值
+                            int total = Math.max(expectedTotalChunks, submittedChunks.get());
+                            double percentage = (double) completed / total * 100;
+                            uploadProgressWebSocketHandler.sendUploadProgress(userId, filename, percentage, completed, total);
 
                             return fileID;
                         } else {
                             throw new RuntimeException("分块 " + partName + " 上传失败：无法获取文件ID");
                         }
                     } catch (Exception e) {
-                        uploadProgressWebSocketHandler.sendUploadError(filename, "分块 " + partName + " 上传失败");
+                        // 登记首个失败，触发读取循环 fail-fast
+                        firstError.compareAndSet(null, e);
+                        uploadProgressWebSocketHandler.sendUploadError(userId, filename, "分块 " + partName + " 上传失败");
                         throw new RuntimeException("分块 " + partName + " 上传失败", e);
                     } finally {
                         semaphore.release();
                     }
                 }, uploadTaskExecutor);
                 futures.add(future);
+                chunkIndex++;
             }
 
-            // 等待所有任务完成并按顺序获取结果
-            List<String> fileIds = new ArrayList<>();
+            log.info("文件 {} 已按 {} 个分块提交上传", filename, futures.size());
+
+            // 按提交顺序 join，保证 fileIds 与分块顺序一致（下载时据此顺序拼接）
+            List<String> fileIds = new ArrayList<>(futures.size());
             try {
                 for (CompletableFuture<String> future : futures) {
                     fileIds.add(future.join());
                 }
                 return fileIds;
             } catch (CompletionException e) {
-                uploadProgressWebSocketHandler.sendUploadError(filename, "分块上传失败: " + e.getCause().getMessage());
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                uploadProgressWebSocketHandler.sendUploadError(userId, filename, "分块上传失败: " + cause.getMessage());
                 for (CompletableFuture<String> future : futures) {
                     future.cancel(true);
                 }
-                throw new RuntimeException("分块上传失败: " + e.getCause().getMessage(), e);
+                throw new RuntimeException("分块上传失败: " + cause.getMessage(), e);
             }
         } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error("文件流读取失败或上传失败：{}", e.getMessage());
-            uploadProgressWebSocketHandler.sendUploadError(filename, "文件流读取失败或上传失败: " + e.getMessage());
+            uploadProgressWebSocketHandler.sendUploadError(userId, filename, "文件流读取失败或上传失败: " + e.getMessage());
             throw new RuntimeException("文件流读取失败或上传失败", e);
         }
     }
@@ -265,7 +313,7 @@ public class FileStorageServiceImpl implements FileStorageService {
         record.setFileIds(fileIds);
         record.setRecordFile(true);
 
-        // 创建一个系统临时文件
+        // 创建一个系统临时目录
         Path tempDir = Files.createTempDirectory("tempDir");
         String hashString = DigestUtil.sha256Hex(originalFileName);
         Path tempFile = tempDir.resolve(hashString + ".record.json");
@@ -274,22 +322,22 @@ public class FileStorageServiceImpl implements FileStorageService {
         try {
             String jsonString = JSON.toJSONString(record, true);
             Files.write(Paths.get(tempFile.toUri()), jsonString.getBytes());
+
+            // 上传记录文件到 Telegram
+            byte[] fileBytes = Files.readAllBytes(tempFile);
+            Message message = sendDocument(fileBytes, tempFile.getFileName().toString());
+            String recordFileId = StringUtil.extractFileId(message);
+
+            log.info("记录文件上传成功，File ID: {}", recordFileId);
+            return recordFileId;
         } catch (IOException e) {
             log.error("上传记录文件生成失败: {}", e.getMessage());
             throw new RuntimeException("上传文件生成失败", e);
+        } finally {
+            // 清理临时文件和目录，防止磁盘泄漏
+            Files.deleteIfExists(tempFile);
+            Files.deleteIfExists(tempDir);
         }
-
-        // 上传记录文件到 Telegram
-        byte[] fileBytes = Files.readAllBytes(tempFile);
-        Message message = sendDocument(fileBytes, tempFile.getFileName().toString());
-        String recordFileId = StringUtil.extractFileId(message);
-
-        log.info("记录文件上传成功，File ID: {}", recordFileId);
-
-        // 删除本地临时文件
-        Files.deleteIfExists(tempFile);
-
-        return recordFileId;
     }
 
     /**
@@ -359,9 +407,16 @@ public class FileStorageServiceImpl implements FileStorageService {
      */
     @Override
     public void deleteFile(String fileId, Long userId, String role) {
+        // 防御：WebDAV 目录记录的 fileId 全为 "dir"，按 fileId 删除会误删所有目录记录
+        if ("dir".equals(fileId)) {
+            throw new BaseException("不允许通过文件接口删除目录记录");
+        }
         FileInfo file = fileMapper.getFileByFileId(fileId);
         if (file == null) {
-            throw new RuntimeException("文件不存在");
+            throw new BaseException("文件不存在");
+        }
+        if (file.isDir()) {
+            throw new BaseException("不允许通过文件接口删除目录记录");
         }
         if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
             try {
@@ -369,7 +424,7 @@ public class FileStorageServiceImpl implements FileStorageService {
                 log.info("文件删除成功，fileId: {}", fileId);
             } catch (Exception e) {
                 log.error("文件删除失败，fileId: {}", fileId, e);
-                throw new RuntimeException("文件删除失败", e);
+                throw new BaseException("文件删除失败");
             }
         } else {
             throw new InsufficientPermissionException("无权限删除此文件");
@@ -380,7 +435,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     public void updateIsPublic(String fileId, boolean isPublic, Long userId, String role) {
         FileInfo file = fileMapper.getFileByFileId(fileId);
         if (file == null) {
-            throw new RuntimeException("文件不存在");
+            throw new BaseException("文件不存在");
         }
         if ("admin".equals(role) || (file.getUserId() != null && file.getUserId().equals(userId))) {
             fileMapper.updateIsPublic(fileId, isPublic);
