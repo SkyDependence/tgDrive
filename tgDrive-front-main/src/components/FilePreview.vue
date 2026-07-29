@@ -10,11 +10,11 @@
       <!-- 图片预览 -->
       <div v-if="isImage" class="image-preview">
         <el-image
-          :src="previewUrl"
+          :src="inlinePreviewUrl"
           :alt="fileInfo?.fileName"
           fit="contain"
           class="preview-image"
-          :preview-src-list="[previewUrl]"
+          :preview-src-list="[inlinePreviewUrl]"
           :initial-index="0"
           preview-teleported
         />
@@ -23,7 +23,7 @@
       <!-- 视频预览 -->
       <div v-else-if="isVideo" class="video-preview">
         <video
-          :src="previewUrl"
+          :src="inlinePreviewUrl"
           controls
           class="preview-video"
           preload="metadata"
@@ -39,7 +39,7 @@
           <h3>{{ fileInfo?.fileName }}</h3>
         </div>
         <audio
-          :src="previewUrl"
+          :src="inlinePreviewUrl"
           controls
           class="preview-audio"
           preload="metadata"
@@ -50,10 +50,12 @@
 
       <!-- PDF预览 -->
       <div v-else-if="isPdf" class="pdf-preview">
+        <div v-if="iframeLoading" class="iframe-loading" v-loading="true" element-loading-text="正在加载 PDF..."></div>
         <iframe
-          :src="previewUrl"
+          :src="inlinePreviewUrl"
           class="preview-iframe"
           frameborder="0"
+          @load="onIframeLoad"
         >
           您的浏览器不支持PDF预览，请<a :href="previewUrl" target="_blank">点击下载</a>
         </iframe>
@@ -69,10 +71,12 @@
       <!-- Office文档预览 -->
       <div v-else-if="isOffice" class="office-preview">
         <div class="office-viewer">
+          <div v-if="iframeLoading" class="iframe-loading" v-loading="true" element-loading-text="正在加载文档..."></div>
           <iframe
             :src="getOfficePreviewUrl()"
             class="preview-iframe"
             frameborder="0"
+            @load="onIframeLoad"
           >
             文档预览加载中...
           </iframe>
@@ -121,8 +125,51 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Download, Headset } from '@element-plus/icons-vue'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
+
+// highlight.js 按需 + 懒加载：只在预览代码文件时才加载核心库与所需语言，
+// 避免把 190+ 语言的完整包（约 800KB）打进首屏 vendor。
+type Hljs = typeof import('highlight.js/lib/core')['default']
+let hljsInstance: Hljs | null = null
+const registeredLangs = new Set<string>()
+
+// 语言别名 -> 动态加载器，仅覆盖本组件实际支持的语言
+const langLoaders: Record<string, () => Promise<{ default: unknown }>> = {
+  javascript: () => import('highlight.js/lib/languages/javascript'),
+  typescript: () => import('highlight.js/lib/languages/typescript'),
+  xml: () => import('highlight.js/lib/languages/xml'), // html/vue 模板走 xml
+  css: () => import('highlight.js/lib/languages/css'),
+  scss: () => import('highlight.js/lib/languages/scss'),
+  less: () => import('highlight.js/lib/languages/less'),
+  java: () => import('highlight.js/lib/languages/java'),
+  python: () => import('highlight.js/lib/languages/python'),
+  cpp: () => import('highlight.js/lib/languages/cpp'),
+  c: () => import('highlight.js/lib/languages/c'),
+  go: () => import('highlight.js/lib/languages/go'),
+  rust: () => import('highlight.js/lib/languages/rust'),
+  php: () => import('highlight.js/lib/languages/php'),
+  ruby: () => import('highlight.js/lib/languages/ruby'),
+  swift: () => import('highlight.js/lib/languages/swift'),
+  kotlin: () => import('highlight.js/lib/languages/kotlin'),
+}
+
+async function ensureHljs(lang: string): Promise<Hljs> {
+  if (!hljsInstance) {
+    const core = await import('highlight.js/lib/core')
+    hljsInstance = core.default
+    // 高亮主题样式也随组件懒加载
+    await import('highlight.js/styles/github.css')
+  }
+  const loader = langLoaders[lang]
+  if (loader && !registeredLangs.has(lang)) {
+    const mod = await loader()
+    // xml 语言别名映射到 html/vue
+    const regName = lang === 'xml' ? 'xml' : lang
+    // @ts-expect-error highlight.js 语言模块默认导出为 LanguageFn
+    hljsInstance.registerLanguage(regName, mod.default)
+    registeredLangs.add(lang)
+  }
+  return hljsInstance
+}
 
 interface FileInfo {
   id: string
@@ -198,13 +245,27 @@ const previewUrl = computed(() => {
   return props.fileInfo?.downloadUrl || ''
 })
 
+// 预览专用 URL：追加 preview=1，让后端对 PDF/图片/视频/音频/文本返回
+// Content-Disposition: inline，浏览器内联渲染而非直接下载
+const inlinePreviewUrl = computed(() => {
+  const url = props.fileInfo?.downloadUrl || ''
+  if (!url) return ''
+  return url + (url.includes('?') ? '&' : '?') + 'preview=1'
+})
+
+// iframe（PDF / Office）加载状态，用于展示加载动画
+const iframeLoading = ref(false)
+const onIframeLoad = () => {
+  iframeLoading.value = false
+}
+
 // 获取代码语言
 const getCodeLanguage = () => {
   const langMap: Record<string, string> = {
     'js': 'javascript',
     'ts': 'typescript',
-    'vue': 'vue',
-    'html': 'html',
+    'vue': 'xml',   // vue 模板用 xml 语法高亮
+    'html': 'xml',  // html 由 highlight.js 的 xml 语言处理
     'css': 'css',
     'scss': 'scss',
     'less': 'less',
@@ -248,9 +309,22 @@ const loadTextContent = async () => {
     const text = await response.text()
     
     if (isCode.value) {
-      // 代码高亮
-      const highlighted = hljs.highlight(text, { language: getCodeLanguage() })
-      highlightedCode.value = highlighted.value
+      // 代码高亮（按需懒加载 highlight.js 核心与对应语言）
+      const lang = getCodeLanguage()
+      try {
+        const hl = await ensureHljs(lang)
+        const supported = lang !== 'plaintext' && hl.getLanguage(lang)
+        highlightedCode.value = supported
+          ? hl.highlight(text, { language: lang }).value
+          : hl.highlightAuto(text).value
+      } catch (e) {
+        console.warn('代码高亮加载失败，降级为纯文本', e)
+        // 转义后作为纯文本展示，避免 v-html 注入
+        highlightedCode.value = text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      }
     } else {
       textContent.value = text
     }
@@ -276,23 +350,30 @@ const handleClose = () => {
   highlightedCode.value = ''
 }
 
+// 打开/切换预览时的统一初始化：iframe 类预览（PDF/Office）先展示加载动画，
+// 文本/代码类则拉取内容
+const initPreview = async () => {
+  if (!props.fileInfo) return
+  await nextTick()
+  if (isPdf.value || isOffice.value) {
+    iframeLoading.value = true
+  }
+  if (isText.value || isCode.value) {
+    loadTextContent()
+  }
+}
+
 // 监听文件信息变化
 watch(() => props.fileInfo, async (newFileInfo) => {
   if (newFileInfo && visible.value) {
-    await nextTick()
-    if (isText.value || isCode.value) {
-      loadTextContent()
-    }
+    await initPreview()
   }
 }, { immediate: true })
 
 // 监听对话框显示状态
 watch(visible, async (newVisible) => {
   if (newVisible && props.fileInfo) {
-    await nextTick()
-    if (isText.value || isCode.value) {
-      loadTextContent()
-    }
+    await initPreview()
   }
 })
 </script>
@@ -349,11 +430,29 @@ watch(visible, async (newVisible) => {
   .office-preview {
     width: 100%;
     height: 600px;
-    
+    position: relative;
+
+    .office-viewer {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
     .preview-iframe {
       width: 100%;
       height: 100%;
       border: 1px solid #dcdfe6;
+      border-radius: 4px;
+    }
+
+    .iframe-loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      background: #fff;
       border-radius: 4px;
     }
   }
