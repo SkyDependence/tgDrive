@@ -7,7 +7,7 @@
             <el-icon class="header-icon"><Lock /></el-icon>
             <div class="header-text">
               <h1 class="title">隐私政策</h1>
-              <p class="subtitle">TG-Drive 隐私保护条款</p>
+              <p class="subtitle">TG Drive 隐私保护条款</p>
             </div>
           </div>
           <el-button 

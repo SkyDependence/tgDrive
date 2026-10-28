@@ -42,7 +42,7 @@
             v-model="passwordForm.newPassword" 
             :prefix-icon="Lock" 
             type="password" 
-            placeholder="请输入 6-16 位的新密码"
+            placeholder="请输入 6-20 位的新密码"
             size="large"
             show-password 
             clearable 
@@ -111,7 +111,7 @@ const rules = computed(() => {
   const baseRules: FormRules = {
     newPassword: [
       { required: true, message: '请输入新密码', trigger: 'blur' },
-      { min: 6, max: 16, message: '密码长度为6-16位', trigger: 'blur' }
+      { min: 6, max: 20, message: '密码长度需为 6 到 20 位', trigger: 'blur' }
     ],
     confirmPassword: [
       { required: true, message: '请确认新密码', trigger: 'blur' },

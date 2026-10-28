@@ -23,7 +23,7 @@
         <div class="logo-subtext">
           <router-link to="/privacy" class="privacy-link">隐私</router-link>
           <span class="separator"> - </span>
-          <router-link to="/user-agreement" class="terms-link">条款</router-link>
+          <router-link to="/agreement" class="terms-link">条款</router-link>
         </div>
       </div>
     </div>
@@ -91,7 +91,7 @@ const emit = defineEmits<{
 const isVerified = ref(false)
 const isLoading = ref(false)
 const showImageVerify = ref(false)
-const challengeType = ref('汽车')
+const challengeType = ref('房子')
 const selectedImages = ref<number[]>([])
 
 // 图标验证数据
@@ -197,6 +197,8 @@ const reset = () => {
   isLoading.value = false
   showImageVerify.value = false
   selectedImages.value = []
+  challengeType.value = '房子'
+  challengeIcons.value.forEach(icon => { icon.isCorrect = false })
   emit('verified', false)
 }
 

@@ -4,8 +4,8 @@
       <div class="login-header">
         <el-icon :size="28" color="var(--el-color-primary)"><Cloudy /></el-icon>
         <h2 class="login-title">欢迎回来</h2>
-        <p class="login-subtitle">您可以使用访客账户登录</p>
-        <div class="account-info">
+        <p v-if="isVisitorAllowed" class="login-subtitle">您可以使用访客账户登录</p>
+        <div v-if="isVisitorAllowed" class="account-info">
           <p>
             <strong>访客账户:</strong>
             <span class="copyable-text" @click="copyToClipboard('visitor')">visitor</span> /
@@ -121,15 +121,16 @@ const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
 const isRegistrationAllowed = ref(false)
+const isVisitorAllowed = ref(false)
 
+// 登录页只做“必填”校验：长度/复杂度是注册时的约束，
+// 登录仅验证凭证是否匹配，套用注册规则会导致历史账号（如访客 hello）无法登录
 const rules: FormRules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, message: '用户名长度至少为3个字符', trigger: 'blur' }
+    { required: true, message: '请输入用户名', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 5, message: '密码长度至少为5个字符', trigger: 'blur' }
+    { required: true, message: '请输入密码', trigger: 'blur' }
   ]
 }
 
@@ -210,13 +211,28 @@ const checkRegistrationStatus = async () => {
   }
 }
 
+const checkVisitorStatus = async () => {
+  try {
+    const response = await request.get('/setting/visitor-status')
+    if (response.data.code === 1) {
+      isVisitorAllowed.value = response.data.data.isVisitorAllowed
+    }
+  } catch (error) {
+    console.error('获取访客状态失败:', error)
+    // 出现错误时默认不展示访客凭证
+    isVisitorAllowed.value = false
+  }
+}
+
 onMounted(() => {
-  const savedUsername = localStorage.getItem('username')
+  // 读取记住的用户名（键名与保存时保持一致）
+  const savedUsername = localStorage.getItem('rememberedUsername')
   if (savedUsername) {
     loginForm.value.username = savedUsername
     rememberMe.value = true
   }
   checkRegistrationStatus()
+  checkVisitorStatus()
 })
 </script>
 

@@ -200,6 +200,7 @@ router.beforeEach((to, _from, next) => {
   void _from;
   const token = localStorage.getItem('token');
   const expireAtRaw = localStorage.getItem('tokenExpireAt');
+  const role = localStorage.getItem('role') || '';
 
   if (token) {
     if (expireAtRaw) {
@@ -216,11 +217,27 @@ router.beforeEach((to, _from, next) => {
 
     // If logged in
     if (to.path === '/login') {
-      // If trying to access login page, redirect to home
-      next({ path: '/' });
+      // If trying to access login page, redirect to home based on role
+      if (role === 'admin') {
+        next({ path: '/home' });
+      } else if (role === 'user') {
+        next({ path: '/user/home' });
+      } else {
+        next({ path: '/' });
+      }
     } else {
-      // For other pages, proceed normally
-      // Here you could add logic to verify token validity or fetch user roles if needed
+      // 校验角色权限：admin 路由仅 admin 可访问，user 路由 admin 和 user 可访问
+      const requiredRole = to.meta?.requiredRole as RouteMeta['requiredRole'];
+      if (requiredRole === 'admin' && role !== 'admin') {
+        ElMessage.error('无权限访问该页面');
+        next({ path: '/' });
+        return;
+      }
+      if (requiredRole === 'user' && role !== 'admin' && role !== 'user') {
+        ElMessage.error('无权限访问该页面');
+        next({ path: '/' });
+        return;
+      }
       next();
     }
   } else {

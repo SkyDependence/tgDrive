@@ -7,28 +7,34 @@ import router from './routers';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import './assets/theme.css';
-// 按需导入Element Plus图标
-import * as ElementPlusIconsVue from '@element-plus/icons-vue';
+// 按需具名导入实际用到的 Element Plus 图标（避免 import * 引入整个图标库）
+import {
+  Upload, UploadFilled, Download, Delete, Edit, View,
+  Search, Refresh, Setting, User, Lock, Unlock,
+  Document, Folder, FolderOpened, Picture, VideoPlay,
+  Close, Check, Warning, InfoFilled, SuccessFilled,
+  CircleClose, ArrowLeft, ArrowRight, More, Plus,
+  Minus, Star, StarFilled, Share, Link, CopyDocument,
+  Tickets, Files, Monitor, Connection,
+} from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
 const app: AppType = createApp(App);
 const pinia = createPinia();
 
-// 注册Element Plus图标（仅注册常用图标以减少包大小）
-const commonIcons = [
-  'Upload', 'UploadFilled', 'Download', 'Delete', 'Edit', 'View', 
-  'Search', 'Refresh', 'Setting', 'User', 'Lock', 'Unlock',
-  'Document', 'Folder', 'FolderOpened', 'Picture', 'VideoPlay',
-  'Close', 'Check', 'Warning', 'InfoFilled', 'SuccessFilled',
-  'CircleClose', 'ArrowLeft', 'ArrowRight', 'More', 'Plus',
-  'Minus', 'Star', 'StarFilled', 'Share', 'Link', 'CopyDocument',
-  'Tickets', 'Files', 'Monitor', 'Connection'
-];
+// 全局注册图标组件（供模板以 <Upload /> 等标签使用）
+const commonIcons: Record<string, unknown> = {
+  Upload, UploadFilled, Download, Delete, Edit, View,
+  Search, Refresh, Setting, User, Lock, Unlock,
+  Document, Folder, FolderOpened, Picture, VideoPlay,
+  Close, Check, Warning, InfoFilled, SuccessFilled,
+  CircleClose, ArrowLeft, ArrowRight, More, Plus,
+  Minus, Star, StarFilled, Share, Link, CopyDocument,
+  Tickets, Files, Monitor, Connection,
+};
 
-for (const iconName of commonIcons) {
-  if (ElementPlusIconsVue[iconName]) {
-    app.component(iconName, ElementPlusIconsVue[iconName]);
-  }
+for (const [name, comp] of Object.entries(commonIcons)) {
+  app.component(name, comp as never);
 }
 
 // Global message function

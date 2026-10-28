@@ -38,7 +38,7 @@
             inactive-text="不需要"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">是否需要用户名密码认证（正在施工中...）</div>
+          <div class="form-tip">关闭后任何人都可匿名访问 WebDAV，请谨慎使用</div>
         </el-form-item>
 
         <!-- 权限设置 -->
@@ -54,9 +54,11 @@
             :disabled="!configForm.enabled"
           >
             <el-option label="仅管理员" value="admin" />
-            <el-option label="访客用户" value="visitor" />
+            <el-option label="普通用户" value="user" />
+            <el-option label="访客" value="visitor" />
+            <el-option label="所有登录用户" value="all" />
           </el-select>
-          <div class="form-tip">设置哪些角色的用户可以访问WebDAV</div>
+          <div class="form-tip">设置哪些角色的用户可以访问 WebDAV</div>
         </el-form-item>
 
         <!-- 功能设置 -->
@@ -72,7 +74,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">（正在施工中...）</div>
+          <div class="form-tip">是否允许通过 WebDAV 新建文件夹（MKCOL）</div>
         </el-form-item>
 
         <el-form-item label="允许删除文件" prop="allowDelete">
@@ -82,7 +84,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">（正在施工中...）</div>
+          <div class="form-tip">是否允许通过 WebDAV 删除文件或目录（DELETE）</div>
         </el-form-item>
 
         <el-form-item label="允许移动文件" prop="allowMove">
@@ -92,7 +94,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">（正在施工中...）</div>
+          <div class="form-tip">是否允许通过 WebDAV 移动或重命名文件（MOVE）</div>
         </el-form-item>
 
         <el-form-item label="允许复制文件" prop="allowCopy">
@@ -102,7 +104,7 @@
             inactive-text="禁止"
             :disabled="!configForm.enabled"
           />
-          <div class="form-tip">（正在施工中...）</div>
+          <div class="form-tip">是否允许通过 WebDAV 复制文件（COPY）</div>
         </el-form-item>
 
         <el-form-item label="配置描述" prop="description">
@@ -122,7 +124,7 @@
               <el-icon><Check /></el-icon>
               保存配置
             </el-button>
-            <el-button @click="resetConfig">
+            <el-button @click="resetConfig" :loading="resettingConfig">
               <el-icon><Refresh /></el-icon>
               重置
             </el-button>
@@ -208,6 +210,7 @@ import request from '@/utils/request'
 const configFormRef = ref<FormInstance>()
 const saving = ref(false)
 const resetting = ref(false)
+const resettingConfig = ref(false)
 
 // 配置表单数据
 const configForm = reactive({
@@ -272,11 +275,17 @@ const saveConfig = async () => {
   }
 }
 
-// 重置配置
-const resetConfig = () => {
+// 重置配置：丢弃未保存的修改，重新从服务器加载
+const resetConfig = async () => {
   if (!configFormRef.value) return
-  configFormRef.value.resetFields()
-  loadConfig()
+  resettingConfig.value = true
+  try {
+    configFormRef.value.clearValidate()
+    await loadConfig()
+    ElMessage.success('已重置为服务器配置')
+  } finally {
+    resettingConfig.value = false
+  }
 }
 
 // 恢复默认配置

@@ -7,7 +7,7 @@
             <el-icon class="header-icon"><Document /></el-icon>
             <div class="header-text">
               <h1 class="title">用户服务协议</h1>
-              <p class="subtitle">TG-Drive 云存储服务条款</p>
+              <p class="subtitle">TG Drive 云存储服务条款</p>
             </div>
           </div>
           <el-button 
@@ -39,7 +39,7 @@
         <!-- 协议内容 -->
         <div class="content-section">
           <h2><el-icon><InfoFilled /></el-icon> 1. 服务说明</h2>
-          <p>TG-Drive 是一个基于 Telegram 的云存储服务平台，为用户提供文件存储、管理和分享功能。通过使用本服务，您同意遵守本协议的所有条款。</p>
+          <p>TG Drive 是一个基于 Telegram 的云存储服务平台，为用户提供文件存储、管理和分享功能。通过使用本服务，您同意遵守本协议的所有条款。</p>
           
           <h3>1.1 服务特性</h3>
           <ul>

@@ -73,7 +73,7 @@
               <el-button type="primary" size="small" @click="copyMarkdown(scope.row)" :icon="Memo">Markdown</el-button>
               <el-button type="success" size="small" @click="copyLink(scope.row)" :icon="Link">链接</el-button>
               <el-button type="warning" size="small" @click="openLink(scope.row.downloadUrl)" :icon="Download">下载</el-button>
-              <el-button type="danger" size="small" @click="deleteFile(scope.row)" :icon="Delete">删除</el-button>
+              <el-button v-if="canManageFile(scope.row)" type="danger" size="small" @click="deleteFile(scope.row)" :icon="Delete">删除</el-button>
             </el-button-group>
           </template>
         </el-table-column>
@@ -84,12 +84,11 @@
         <el-empty v-if="fileList.length === 0 && !loading" description="暂无文件" />
         <el-skeleton v-if="loading" :rows="5" animated />
         <div v-else>
-          <div 
-            v-for="file in fileList" 
-            :key="file.fileId" 
+          <div
+            v-for="file in fileList"
+            :key="file.fileId"
             class="mobile-file-item"
             :class="{ 'is-selected': isSelected(file) }"
-            @click="toggleSelection(file)"
           >
             <div class="file-info">
               <el-checkbox 
@@ -114,7 +113,7 @@
                 <el-button type="primary" size="small" @click.stop="copyMarkdown(file)" :icon="Memo" circle />
                 <el-button type="success" size="small" @click.stop="copyLink(file)" :icon="Link" circle />
                 <el-button type="warning" size="small" @click.stop="openLink(file.downloadUrl)" :icon="Download" circle />
-                <el-button type="danger" size="small" @click.stop="deleteFile(file)" :icon="Delete" circle />
+                <el-button v-if="canManageFile(file)" type="danger" size="small" @click.stop="deleteFile(file)" :icon="Delete" circle />
               </el-button-group>
             </div>
           </div>
@@ -235,6 +234,13 @@ const currentUserId = computed(() => {
   return userId ? parseInt(userId) : null;
 });
 
+// 权限判断：管理员或文件属主可删除/修改文件
+const canManageFile = (file: FileItem) => {
+  if (currentRole.value === 'admin') return true;
+  if (file.userId && currentUserId.value && file.userId === currentUserId.value) return true;
+  return false;
+};
+
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 768;
 };
@@ -266,6 +272,12 @@ const fetchFileList = async () => {
       const pageResult = response.data.data;
       fileList.value = pageResult.records || [];
       totalItems.value = pageResult.total || 0;
+      // 处理分页越界：当前页无数据且不是第一页时，回退到前一页
+      if (fileList.value.length === 0 && currentPage.value > 1) {
+        currentPage.value--;
+        fetchFileList();
+        return;
+      }
     } else {
       ElMessage.error(response.data?.msg || '获取文件列表失败');
     }

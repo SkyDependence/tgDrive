@@ -27,6 +27,14 @@
             :loading="registrationSettingLoading"
           />
         </div>
+        <div class="setting-item">
+          <span class="setting-label">开放访客登录</span>
+          <el-switch
+            v-model="allowVisitor"
+            @change="handleVisitorStatusChange"
+            :loading="visitorSettingLoading"
+          />
+        </div>
       </div>
 
       <!-- 用户统计卡片 -->
@@ -38,15 +46,6 @@
           <div class="stat-content">
             <div class="stat-number">{{ totalUsers }}</div>
             <div class="stat-label">总用户数</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon online-users">
-            <el-icon><User /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">{{ onlineUsers }}</div>
-            <div class="stat-label">在线用户</div>
           </div>
         </div>
         <div class="stat-card">
@@ -79,7 +78,7 @@
         </el-table-column>
         <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip>
           <template #default="scope">
-            {{ scope.row.role === 'admin' ? (scope.row.email || '') : scope.row.email }}
+            {{ scope.row.email || '-' }}
           </template>
         </el-table-column>
         <el-table-column prop="role" label="角色" width="100" align="center">
@@ -312,12 +311,13 @@ const selectedUser = ref<UserItem | null>(null)
 
 // 用户统计数据
 const totalUsers = ref(0)
-const onlineUsers = ref(0)
 const adminUsers = ref(0)
 
 // 系统设置
 const allowRegistration = ref(false)
 const registrationSettingLoading = ref(false)
+const allowVisitor = ref(true)
+const visitorSettingLoading = ref(false)
 
 const changePasswordForm = ref<ChangePasswordForm>({
   username: '',
@@ -425,6 +425,10 @@ const fetchSettings = async () => {
       if (registrationSetting) {
         allowRegistration.value = registrationSetting.value === 'true'
       }
+      const visitorSetting = settings.find(s => s.key === 'allow_visitor')
+      if (visitorSetting) {
+        allowVisitor.value = visitorSetting.value === 'true'
+      }
     } else {
       ElMessage.error(response.data?.msg || '获取系统设置失败')
     }
@@ -457,16 +461,38 @@ const handleRegistrationStatusChange = async (newValue: boolean | string | numbe
   }
 }
 
+// 更新访客登录开关
+const handleVisitorStatusChange = async (newValue: boolean | string | number) => {
+  visitorSettingLoading.value = true
+  try {
+    const response = await request.post('/setting', {
+      key: 'allow_visitor',
+      value: newValue.toString()
+    })
+    if (response.data?.code === 1) {
+      ElMessage.success(newValue ? '访客登录已开放' : '访客登录已关闭')
+    } else {
+      ElMessage.error(response.data?.msg || '设置更新失败')
+      allowVisitor.value = !newValue
+    }
+  } catch (error) {
+    console.error('设置更新失败:', error)
+    ElMessage.error('设置更新失败，请检查网络连接')
+    allowVisitor.value = !newValue
+  } finally {
+    visitorSettingLoading.value = false
+  }
+}
+
 // 更新用户统计数据
 const updateUserStats = () => {
   totalUsers.value = userList.value.length
   adminUsers.value = userList.value.filter(user => user.role === 'admin').length
-  // 这里简单模拟在线用户数，实际项目中应该从后端获取
-  onlineUsers.value = Math.floor(totalUsers.value * 0.1) // 假设10%的用户在线
 }
 
+// 搜索功能由 filteredUserList 计算属性实时响应，搜索按钮作为视觉反馈触发失焦
 const handleSearch = () => {
-  // 搜索功能由计算属性实现，这里不需要额外操作
+  // 实时过滤已由 computed 自动处理，这里保留函数以兼容模板调用
 }
 
 const clearSearch = () => {
@@ -689,10 +715,6 @@ onBeforeUnmount(() => {
 
 .stat-icon.total-users {
   background: linear-gradient(135deg, #409eff, #66b1ff);
-}
-
-.stat-icon.online-users {
-  background: linear-gradient(135deg, #67c23a, #85ce61);
 }
 
 .stat-icon.admin-users {
