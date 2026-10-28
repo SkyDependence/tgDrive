@@ -29,10 +29,10 @@ import org.springframework.stereotype.Service;
 public class TelegramBotServiceImpl implements TelegramBotService {
     private final ConfigService configService;
 
-    private String botToken;
-    private String chatId;
-    private String customUrl;
-    private TelegramBot bot;
+    private volatile String botToken;
+    private volatile String chatId;
+    private volatile String customUrl;
+    private volatile TelegramBot bot;
 
     @Override
     public TelegramBot getBot() {

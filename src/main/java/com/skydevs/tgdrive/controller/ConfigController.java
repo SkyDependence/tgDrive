@@ -40,6 +40,8 @@ public class ConfigController {
             log.error("配置获取失败，请检查文件名是否错误");
             throw new ConfigFileNotFoundException();
         }
+        // 对敏感字段（token、pass）做掩码，避免单条查询接口明文回传凭证
+        maskSensitive(config);
         log.info("获取数据成功");
         return Result.success(config);
     }
@@ -55,7 +57,24 @@ public class ConfigController {
     @GetMapping("/configs")
     public Result<List<ConfigForm>> getConfigs() {
         List<ConfigForm> configForms = configService.getForms();
+        // 列表展示时对敏感字段做掩码，降低 Bot Token / 配置密码泄露风险
+        configForms.forEach(this::maskSensitive);
         return Result.success(configForms);
+    }
+
+    /**
+     * 对配置中的敏感字段（token、pass）做掩码处理
+     */
+    private void maskSensitive(ConfigForm config) {
+        if (config == null) return;
+        config.setToken(mask(config.getToken()));
+        config.setPass(mask(config.getPass()));
+    }
+
+    private String mask(String value) {
+        if (value == null || value.isEmpty()) return value;
+        if (value.length() <= 8) return "****";
+        return value.substring(0, 4) + "****" + value.substring(value.length() - 4);
     }
 
     /**

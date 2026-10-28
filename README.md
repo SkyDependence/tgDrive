@@ -308,7 +308,29 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Port $server_port;
-        client_max_body_size 100M ; # 可以设置为你需要上传的文件的最大的大小
+
+        # 上传文件大小上限：需 >= 你要上传的最大文件（应与后端 max-file-size 匹配，例如 5G）
+        client_max_body_size 5G;
+
+        # 大文件上传/下载超时：默认 60s 对大文件远远不够，会导致 504，务必调大
+        proxy_read_timeout 3600s;    # 后端响应/下载阶段超时（分块大文件下载关键）
+        proxy_send_timeout 3600s;    # 向后端发送请求体（上传）超时
+        client_body_timeout 3600s;   # 读取客户端请求体（上传）超时
+
+        # 关闭上传缓冲，避免 Nginx 先把整个大请求体缓存到磁盘再转发，降低延迟与磁盘占用
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_http_version 1.1;
+    }
+
+    # WebSocket 上传进度推送：需要 Upgrade 头与更长的读超时以保持长连接
+    location /ws/ {
+        proxy_pass http://localhost:8085;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
     }
 }
 ```

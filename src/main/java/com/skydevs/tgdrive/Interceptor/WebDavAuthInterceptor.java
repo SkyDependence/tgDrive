@@ -33,7 +33,13 @@ public class WebDavAuthInterceptor implements HandlerInterceptor {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             return false;
         }
-        
+
+        // 若配置为“不需要认证”，则跳过 Basic 认证直接放行
+        if (!webDavConfigService.isAuthRequired()) {
+            log.debug("WebDAV 已配置为免认证，放行请求");
+            return true;
+        }
+
         // 读取 Authorization 头部信息
         String authHeader = request.getHeader("Authorization");
 

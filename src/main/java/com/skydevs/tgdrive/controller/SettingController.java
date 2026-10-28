@@ -35,6 +35,15 @@ public class SettingController {
     }
 
     /**
+     * 获取访客功能开关状态（公开端点，供登录页决定是否展示访客凭证）
+     * @return 访客功能是否开放
+     */
+    @GetMapping("/visitor-status")
+    public Result<Map<String, Boolean>> getVisitorStatus() {
+        return Result.success(Map.of("isVisitorAllowed", settingService.isVisitorAllowed()));
+    }
+
+    /**
      * Description:
      * 获取所有设置
      * @author SkyDev

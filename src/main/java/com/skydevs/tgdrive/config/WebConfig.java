@@ -16,14 +16,21 @@ import java.nio.file.Paths;
 public class WebConfig implements WebMvcConfigurer {
 
     private final WebDavAuthInterceptor webDavAuthInterceptor;
-    
+
     @Value("${app.upload.path:uploads}")
     private String uploadPath;
+
+    /**
+     * 跨域允许的来源，可通过配置 app.cors.allowed-origins 收紧为具体域名（生产环境建议配置）
+     * 默认 "*" 保持兼容；前后端同源部署时建议配置为具体来源
+     */
+    @Value("${app.cors.allowed-origins:*}")
+    private String[] allowedOrigins;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("*") // 前端地址
+                .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false);
@@ -42,9 +49,6 @@ public class WebConfig implements WebMvcConfigurer {
         
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + absoluteUploadPath + "/");
-        
-        // 保持原有的静态资源配置
-        registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/");
+        // SPA 静态资源与路由回退由 SpaResourceConfig 统一处理
     }
 }

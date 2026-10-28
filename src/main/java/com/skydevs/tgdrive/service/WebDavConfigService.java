@@ -30,6 +30,12 @@ public interface WebDavConfigService {
      * @return 是否启用
      */
     boolean isWebDavEnabled();
+
+    /**
+     * 检查WebDAV是否需要认证
+     * @return 是否需要认证
+     */
+    boolean isAuthRequired();
     
     /**
      * 检查用户是否有WebDAV访问权限

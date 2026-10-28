@@ -4,7 +4,6 @@ import com.pengrad.telegrambot.model.Message;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class StringUtil {
@@ -50,30 +49,24 @@ public class StringUtil {
     }
 
     /**
-     * 获取路径中的文件夹名字
-     * @param path 路径
-     * @return 文件夹名字数组
+     * 获取路径中需要确保存在的所有上级目录路径
+     * 仅用于文件上传场景：路径最后一段视为文件名，跳过；前面所有非空段都是上级目录。
+     * 不再因段名包含 "." 而中断，以支持 "v1.2" 这类带点的目录名。
+     * @param path 文件路径
+     * @return 各级目录路径列表（每个以 / 结尾）
      */
     public static List<String> getDirsPathFromPath(String path) {
         String[] paths = path.split("/");
-        // 去掉文件名
-        if (paths.length > 0 && paths[paths.length - 1].contains(".")) {
-            paths = Arrays.copyOf(paths, paths.length - 1);
-        }
-
-        List<String> dirPaths = new ArrayList<>(); // 用于存储每个文件夹的路径
-
-        StringBuilder currentPath = new StringBuilder(); // 拼接路径
-
-        for (String p : paths) {
+        List<String> dirPaths = new ArrayList<>();
+        StringBuilder currentPath = new StringBuilder();
+        // 最后一段是文件名，跳过；前面所有非空段都是需要确保存在的目录
+        for (int i = 0; i < paths.length - 1; i++) {
+            String p = paths[i];
             if (p.isEmpty()) {
                 continue;
             }
-            if (p.contains(".")) {
-                break;
-            }
-            currentPath.append("/" + p);
-            dirPaths.add(currentPath + "/");
+            currentPath.append("/").append(p);
+            dirPaths.add(currentPath.toString() + "/");
         }
         return dirPaths;
     }

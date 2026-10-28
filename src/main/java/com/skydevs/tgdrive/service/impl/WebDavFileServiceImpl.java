@@ -1,11 +1,13 @@
 package com.skydevs.tgdrive.service.impl;
 
+import com.skydevs.tgdrive.dto.WebDavConfig;
 import com.skydevs.tgdrive.entity.FileInfo;
 import com.skydevs.tgdrive.exception.file.FailedToGetSizeException;
 import com.skydevs.tgdrive.mapper.FileMapper;
 import com.skydevs.tgdrive.service.DownloadService;
 import com.skydevs.tgdrive.service.FileStorageService;
 import com.skydevs.tgdrive.service.TelegramBotService;
+import com.skydevs.tgdrive.service.WebDavConfigService;
 import com.skydevs.tgdrive.service.WebDavFileService;
 import com.skydevs.tgdrive.utils.StringUtil;
 import com.skydevs.tgdrive.utils.UserFriendly;
@@ -31,11 +33,18 @@ public class WebDavFileServiceImpl implements WebDavFileService {
     private final FileStorageService fileStorageService;
     private final TelegramBotService telegramBotService;
     private final DownloadService downloadService;
+    private final WebDavConfigService webDavConfigService;
 
     @Override
     public String uploadByWebDav(InputStream inputStream, HttpServletRequest request) {
         try {
+            // URL 解码：getRequestURI() 返回未解码路径，中文等特殊字符以 %xx 编码
             String path = StringUtil.getPath(request.getRequestURI());
+            try {
+                path = UriUtils.decode(path, "UTF-8");
+            } catch (Exception e) {
+                log.warn("WebDAV 上传路径解码失败: {}", path);
+            }
 
             long size = request.getContentLengthLong();
             if (size < 0) {
@@ -66,7 +75,7 @@ public class WebDavFileServiceImpl implements WebDavFileService {
                         .webdavPath(dirPath)
                         .dir(true)
                         .userId(null) // WebDAV目录不关联用户
-                        .isPublic(true) // WebDAV目录默认公开
+                        .isPublic(false) // 不再标记为公开：WebDAV 记录不应混入 web 端个人文件列表
                         .build();
                 fileMapper.insertFile(dirInfo);
                 log.info("新增文件夹路径{}", dirPath);
@@ -76,7 +85,8 @@ public class WebDavFileServiceImpl implements WebDavFileService {
             String customUrl = telegramBotService.getCustomUrl();
             String prefix = (customUrl != null && !customUrl.trim().isEmpty()) ? customUrl.trim() : StringUtil.getPrefix(request);
             
-            // WebDAV上传的文件默认设置为公开，因为WebDAV通常用于共享
+            // WebDAV 上传的文件不再标记为公开：web 端“我的文件”只展示归属自己的文件，
+            // WebDAV 文件仍可通过 WebDAV 协议或直链 /d/{fileId} 访问
             FileInfo fileInfo = FileInfo.builder()
                     .fileId(fileId)
                     .fileName(fileName)
@@ -86,7 +96,7 @@ public class WebDavFileServiceImpl implements WebDavFileService {
                     .downloadUrl(prefix + "/d/" + fileId)
                     .webdavPath(path)
                     .userId(null) // WebDAV上传暂时不关联用户
-                    .isPublic(true) // WebDAV文件默认公开
+                    .isPublic(false) // 不再标记为公开
                     .build();
             fileMapper.insertFile(fileInfo);
             return fileId;
@@ -117,6 +127,10 @@ public class WebDavFileServiceImpl implements WebDavFileService {
 
     @Override
     public void deleteByWebDav(String path) {
+        // 校验配置是否允许删除
+        if (!isOperationAllowed(c -> c.getAllowDelete())) {
+            throw new com.skydevs.tgdrive.exception.BaseException("WebDAV 删除操作已被禁用");
+        }
         try {
             // 尝试删除文件，如果找不到则尝试解码后的路径
             FileInfo file = getFileByWebdavPathWithFallback(path);
@@ -126,6 +140,8 @@ public class WebDavFileServiceImpl implements WebDavFileService {
                 // 如果还是找不到，尝试原始路径
                 fileMapper.deleteFileByWebDav(path);
             }
+        } catch (com.skydevs.tgdrive.exception.BaseException e) {
+            throw e;
         } catch (Exception e) {
             log.error("文件删除失败", e);
             throw new RuntimeException("文件删除失败", e);
@@ -133,33 +149,59 @@ public class WebDavFileServiceImpl implements WebDavFileService {
     }
 
     /**
-     * 列出WebDAV文件
+     * 列出 WebDAV 直接子项
      *
-     * @param path 路径
-     * @return
+     * @param path 目录路径（建议以 / 结尾）
+     * @return 直接子文件/子目录列表
      */
     @Override
     public List<FileInfo> listFiles(String path) {
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        // 根目录保持 "/"；非根目录统一以 / 结尾，保证 substring 计算正确
+        if (!path.equals("/") && !path.endsWith("/")) {
+            path = path + "/";
+        }
         List<FileInfo> files = fileMapper.getFilesByPathPrefix(path);
         if (files == null) {
             log.error("文件查询失败");
-            return null;
+            return new ArrayList<>();
         }
         List<FileInfo> res = new ArrayList<>();
         for (FileInfo file : files) {
             String str = file.getWebdavPath().substring(path.length());
-            if (str.indexOf('/') != -1 && !file.isDir()) {
+            if (str.isEmpty()) {
+                continue; // 自身
+            }
+            // 文件：余部不应包含 /，否则是更深层文件
+            if (!file.isDir() && str.indexOf('/') != -1) {
                 continue;
             }
-            if (str.indexOf('/') != -1 && str.substring(str.indexOf('/')).length() > 1) {
-                continue;
-            }
-            if (file.getWebdavPath().equals(path)) {
-                continue;
+            // 目录：余部形如 "sub/"；若包含更多内容（如 "sub/grand/"）则是更深层目录，跳过
+            if (file.isDir()) {
+                // str 例如 "sub/"，去掉末尾 / 后不应再包含 /
+                String namePart = str.endsWith("/") ? str.substring(0, str.length() - 1) : str;
+                if (namePart.indexOf('/') != -1) {
+                    continue;
+                }
             }
             res.add(file);
         }
         return res;
+    }
+
+    /**
+     * 检查 WebDAV 配置中的某项操作是否允许
+     */
+    private boolean isOperationAllowed(java.util.function.Function<WebDavConfig, Boolean> getter) {
+        try {
+            WebDavConfig config = webDavConfigService.getWebDavConfig();
+            return config != null && Boolean.TRUE.equals(getter.apply(config));
+        } catch (Exception e) {
+            log.error("检查 WebDAV 操作权限失败", e);
+            return false;
+        }
     }
 
     /**

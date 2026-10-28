@@ -1,5 +1,6 @@
 package com.skydevs.tgdrive.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
 import com.skydevs.tgdrive.dto.*;
@@ -8,7 +9,7 @@ import com.skydevs.tgdrive.result.Result;
 import com.skydevs.tgdrive.service.SettingService;
 import com.skydevs.tgdrive.service.UserService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -64,6 +65,7 @@ public class UserController {
      * @param changePasswordRequest 修改密码请求
      * @return 密码修改成功消息
      */
+    @SaCheckLogin
     @PostMapping("change-password")
     public Result<String> changePassword(@Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
         long userId = StpUtil.getLoginIdAsLong();
@@ -89,7 +91,7 @@ public class UserController {
         try {
             // 注册用户
             User user = userService.register(registerRequest);
-            
+
             // 自动登录
             AuthRequest authRequest = AuthRequest.builder()
                             .username(registerRequest.getUsername())
@@ -99,8 +101,9 @@ public class UserController {
 
             log.info("用户注册并登录成功: {}", user.getUsername());
             return userLogin;
-        } catch (Exception e) {
-            log.error("用户注册失败: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            // 业务异常（如用户已存在、密码校验失败等）返回可读消息
+            log.warn("用户注册失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
@@ -113,14 +116,9 @@ public class UserController {
     @SaCheckRole("admin")
     @PostMapping("/admin/change-password")
     public Result<String> adminChangePassword(@Valid @RequestBody AdminChangePasswordRequest adminChangePasswordRequest) {
-        try {
-            userService.adminChangePassword(adminChangePasswordRequest);
-            log.info("管理员修改用户密码成功: {}", adminChangePasswordRequest.getUsername());
-            return Result.success("密码修改成功");
-        } catch (Exception e) {
-            log.error("管理员修改用户密码失败: {}", e.getMessage());
-            return Result.error(e.getMessage());
-        }
+        userService.adminChangePassword(adminChangePasswordRequest);
+        log.info("管理员修改用户密码成功: {}", adminChangePasswordRequest.getUsername());
+        return Result.success("密码修改成功");
     }
 
     /**
@@ -130,15 +128,10 @@ public class UserController {
     @SaCheckRole("admin")
     @GetMapping("/admin/users")
     public Result<List<User>> getAllUsers() {
-        try {
-            List<User> users = userService.getAllUsers();
-            // 清除密码信息，避免泄露
-            users.forEach(user -> user.setPassword(null));
-            return Result.success(users);
-        } catch (Exception e) {
-            log.error("获取用户列表失败: {}", e.getMessage());
-            return Result.error("获取用户列表失败: " + e.getMessage());
-        }
+        List<User> users = userService.getAllUsers();
+        // 清除密码信息，避免泄露
+        users.forEach(user -> user.setPassword(null));
+        return Result.success(users);
     }
 
     /**
@@ -148,14 +141,9 @@ public class UserController {
      */
     @SaCheckRole("admin")
     @DeleteMapping("/admin/users/{userId}")
-    public Result<String> deleteUser(@NotBlank(message = "userID不能为空") @PathVariable Long userId) {
-        try {
-            userService.deleteUser(userId);
-            log.info("管理员删除用户成功: {}", userId);
-            return Result.success("用户删除成功");
-        } catch (Exception e) {
-            log.error("管理员删除用户失败: {}", e.getMessage());
-            return Result.error(e.getMessage());
-        }
+    public Result<String> deleteUser(@NotNull(message = "userID不能为空") @PathVariable Long userId) {
+        userService.deleteUser(userId);
+        log.info("管理员删除用户成功: {}", userId);
+        return Result.success("用户删除成功");
     }
 }
